@@ -3,27 +3,15 @@ package com.Ecommerce.OrderService.Service;
 
 import com.Ecommerce.OrderService.Entity.Order;
 import com.Ecommerce.OrderService.Entity.OrderItem;
-import com.Ecommerce.OrderService.Exception.CustomBadRequestException;
-import com.Ecommerce.OrderService.Exception.ProductNotFoundException;
-import com.Ecommerce.OrderService.Exception.WebClientException;
 import com.Ecommerce.OrderService.Repository.OrderRepository;
 
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Request.Product;
 import com.Ecommerce.OrderService.Response.MessageResponse;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
