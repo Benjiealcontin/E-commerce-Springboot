@@ -12,19 +12,13 @@ public class TokenDecodeService {
         this.webClientBuilder = webClientBuilder;
     }
 
-    public void getUserInfo(String bearerToken) {
-        Customer customer = webClientBuilder.build()
+    public Customer getUserInfo(String bearerToken) {
+        return webClientBuilder.build()
                 .get()
                 .uri("http://Keycloak-Service/api/keycloak/userInfo")
                 .header("Authorization", bearerToken)
                 .retrieve()
                 .bodyToMono(Customer.class)
                 .block();
-
-
-        assert customer != null;
-        System.out.println(customer.getConsumerId());
-        System.out.println(customer.getCountry());
     }
-
 }

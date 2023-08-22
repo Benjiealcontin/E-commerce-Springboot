@@ -80,8 +80,6 @@ public class Product_Service {
         return products;
     }
 
-
-
     //List All Products
     public List<Product> AllProducts(){
         List<Product> products = productRepository.findAll();
