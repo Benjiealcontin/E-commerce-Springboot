@@ -1,25 +1,25 @@
 package com.Ecommerce.OrderService.Service;
 
-import com.Ecommerce.OrderService.Request.Customer;
+import com.Ecommerce.OrderService.Request.CustomerRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Service
-public class TokenDecodeService {
+public class WebclientService {
     private final WebClient.Builder webClientBuilder;
 
-    public TokenDecodeService(WebClient.Builder webClientBuilder) {
+    public WebclientService(WebClient.Builder webClientBuilder) {
         this.webClientBuilder = webClientBuilder;
     }
 
     //User Info
-    public Customer getUserInfo(String bearerToken) {
+    public CustomerRequest getUserInfo(String bearerToken) {
         return webClientBuilder.build()
                 .get()
                 .uri("http://Keycloak-Service/api/keycloak/userInfo")
                 .header("Authorization", bearerToken)
                 .retrieve()
-                .bodyToMono(Customer.class)
+                .bodyToMono(CustomerRequest.class)
                 .block();
     }
 }

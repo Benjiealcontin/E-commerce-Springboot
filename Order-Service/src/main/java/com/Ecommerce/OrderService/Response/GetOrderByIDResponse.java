@@ -1,7 +1,8 @@
 package com.Ecommerce.OrderService.Response;
 
+import com.Ecommerce.OrderService.Entity.ShippingAddress;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
-import com.Ecommerce.OrderService.Request.Customer;
+import com.Ecommerce.OrderService.Entity.Customer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,7 +13,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class GetByIDResponse {
+public class GetOrderByIDResponse {
     private Long id;
     private Customer customer;
     private List<OrderItemResponse> items;
@@ -20,5 +21,4 @@ public class GetByIDResponse {
     private OrderStatus status;
     private double totalAmount;
     private ShippingAddress shippingAddress;
-
 }
