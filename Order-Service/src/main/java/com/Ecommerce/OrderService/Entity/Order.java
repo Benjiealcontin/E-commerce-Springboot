@@ -29,5 +29,6 @@ public class Order {
     @CreationTimestamp
     @Column(name = "order_at", nullable = false, updatable = false)
     private LocalDateTime orderDate;
+
     private OrderStatus orderStatus;
 }

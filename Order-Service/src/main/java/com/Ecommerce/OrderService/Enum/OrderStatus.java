@@ -1,9 +1,9 @@
 package com.Ecommerce.OrderService.Enum;
 
 public enum OrderStatus {
-    CREATED,
-    PROCESSING,
+    PENDING,
+    PAID,
     SHIPPED,
     DELIVERED,
-    CANCELED
+    CANCELLED
 }

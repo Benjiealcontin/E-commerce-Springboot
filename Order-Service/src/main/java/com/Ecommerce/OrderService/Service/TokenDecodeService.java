@@ -12,6 +12,7 @@ public class TokenDecodeService {
         this.webClientBuilder = webClientBuilder;
     }
 
+    //User Info
     public Customer getUserInfo(String bearerToken) {
         return webClientBuilder.build()
                 .get()

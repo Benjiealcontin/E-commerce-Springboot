@@ -4,7 +4,6 @@ package com.Ecommerce.OrderService.Service;
 import com.Ecommerce.OrderService.Entity.Order;
 import com.Ecommerce.OrderService.Entity.OrderItem;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
-import com.Ecommerce.OrderService.Exception.OrderCreationException;
 import com.Ecommerce.OrderService.Exception.ProductsNotFoundException;
 import com.Ecommerce.OrderService.Repository.OrderRepository;
 
@@ -12,12 +11,8 @@ import com.Ecommerce.OrderService.Request.Customer;
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Request.Product;
 import com.Ecommerce.OrderService.Response.MessageResponse;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -37,7 +32,8 @@ public class Order_Service {
 
     private static final String PRODUCT_SERVICE_URL = "http://Product-Service/api/product";
 
-    public MessageResponse addOrder(OrderRequest orderRequest, String bearerToken, Customer customer) throws JsonProcessingException {
+    //Add Order
+    public MessageResponse addOrder(OrderRequest orderRequest, String bearerToken, Customer customer) {
         try {
             // Extract product IDs from the order request
             List<Long> productIds = orderRequest.getOrderItems().stream()
@@ -60,7 +56,7 @@ public class Order_Service {
             if (products != null && !products.isEmpty()) {
                 // Create a new order
                 Order order = new Order();
-                order.setOrderStatus(OrderStatus.CREATED);
+                order.setOrderStatus(OrderStatus.PENDING);
                 order.setCustomerId(customer.getConsumerId());
                 List<OrderItem> orderItems = new ArrayList<>();
 
@@ -90,7 +86,6 @@ public class Order_Service {
                 // Save the order to the repository if needed
                 orderRepository.save(order);
             }
-
             return new MessageResponse("Order created successfully");
         }catch (WebClientResponseException.NotFound ex) {
             String responseBody = ex.getResponseBodyAsString();
