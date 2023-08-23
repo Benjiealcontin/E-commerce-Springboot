@@ -9,18 +9,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-public class ShippingAddress {
+public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "order_id", nullable = false)
-    private Order order;
+    @JoinColumn(name = "orderItem_id")
+    private OrderItem orderItem;
 
-    private String streetAddress;
-    private String locality;
-    private String region;
-    private String postalCode;
-    private String country;
+    private Long productId;
+    private String productName;
+    private double price;
 }

@@ -1,4 +1,4 @@
-package com.Ecommerce.OrderService.Response;
+package com.Ecommerce.OrderService.Dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,8 +1,8 @@
 package com.Ecommerce.OrderService.Controller;
 
+import com.Ecommerce.OrderService.Exception.InsufficientProductQuantityException;
 import com.Ecommerce.OrderService.Exception.ProductsNotFoundException;
-import com.Ecommerce.OrderService.Entity.Customer;
-import com.Ecommerce.OrderService.Request.CustomerRequest;
+import com.Ecommerce.OrderService.Request.CustomerInfo;
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Service.Order_Service;
 import com.Ecommerce.OrderService.Service.WebclientService;
@@ -25,9 +25,10 @@ public class OrderController {
     @PostMapping("/add-order")
     public ResponseEntity<?> addOrder(@RequestBody OrderRequest orderRequest, @RequestHeader("Authorization") String bearerToken) {
         try{
-            CustomerRequest customerInfo = tokenDecodeService.getUserInfo(bearerToken);
-
+            CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
             return ResponseEntity.ok(orderService.addOrder(orderRequest, customerInfo, bearerToken));
+        }catch(InsufficientProductQuantityException e){
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }catch(ProductsNotFoundException e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }catch(Exception e){

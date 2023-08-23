@@ -11,7 +11,6 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "Customer")
 public class Customer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

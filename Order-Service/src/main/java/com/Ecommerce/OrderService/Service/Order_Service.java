@@ -1,20 +1,16 @@
 package com.Ecommerce.OrderService.Service;
 
 
-import com.Ecommerce.OrderService.Entity.Order;
-import com.Ecommerce.OrderService.Entity.OrderItem;
-import com.Ecommerce.OrderService.Entity.ShippingAddress;
+import com.Ecommerce.OrderService.Entity.*;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
+import com.Ecommerce.OrderService.Exception.InsufficientProductQuantityException;
 import com.Ecommerce.OrderService.Exception.ProductsNotFoundException;
-import com.Ecommerce.OrderService.Repository.CustomerRepository;
-import com.Ecommerce.OrderService.Repository.OrderRepository;
+import com.Ecommerce.OrderService.Repository.*;
 
-import com.Ecommerce.OrderService.Entity.Customer;
-import com.Ecommerce.OrderService.Repository.ShippingAddressRepository;
-import com.Ecommerce.OrderService.Request.CustomerRequest;
+import com.Ecommerce.OrderService.Request.CustomerInfo;
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Request.ProductRequest;
-import com.Ecommerce.OrderService.Response.MessageResponse;
+import com.Ecommerce.OrderService.Dto.MessageResponse;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -30,18 +26,24 @@ public class Order_Service {
     private final OrderRepository orderRepository;
     private final CustomerRepository customerRepository;
     private final ShippingAddressRepository shippingAddressRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ProductRepository productRepository;
     private final WebClient.Builder webClientBuilder;
-    public Order_Service(OrderRepository orderRepository, CustomerRepository customerRepository, ShippingAddressRepository shippingAddressRepository, WebClient.Builder webClientBuilder) {
+
+    public Order_Service(OrderRepository orderRepository, CustomerRepository customerRepository, ShippingAddressRepository shippingAddressRepository, OrderItemRepository orderItemRepository, ProductRepository productRepository, WebClient.Builder webClientBuilder) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.shippingAddressRepository = shippingAddressRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.productRepository = productRepository;
         this.webClientBuilder = webClientBuilder;
     }
 
     private static final String PRODUCT_SERVICE_URL = "http://Product-Service/api/product";
+    double totalAmount = 0.0;
 
     //Add Order
-    public MessageResponse addOrder(OrderRequest orderRequest, CustomerRequest customerInfo, String bearerToken) {
+    public MessageResponse addOrder(OrderRequest orderRequest, CustomerInfo customerInfo, String bearerToken) {
         try {
             // Extract product IDs from the order request
             List<Long> productIds = orderRequest.getOrderItems().stream()
@@ -66,10 +68,12 @@ public class Order_Service {
                 Order order = new Order();
                 order.setOrderStatus(OrderStatus.PENDING);
                 List<OrderItem> orderItems = new ArrayList<>();
+                Order savedOrder = orderRepository.save(order);
 
                 // Process each product and order item
                 for (ProductRequest product : products) {
                     int totalQuantity = 0;
+
                     for (OrderRequest.OrderItemRequest itemRequest : orderRequest.getOrderItems()) {
                         if (itemRequest.getProductId().equals(product.getId())) {
                             totalQuantity += itemRequest.getQuantity();
@@ -77,20 +81,40 @@ public class Order_Service {
                     }
 
                     if (totalQuantity > 0) {
-                        // Create an order item and calculate total price
+                        if (totalQuantity > product.getStockQuantity()) {
+                            throw new InsufficientProductQuantityException("Insufficient quantity for product: " + product.getProductName());
+                        }
+                        // Calculate total price based on product price and combined quantity
+                        double itemTotalPrice = product.getPrice() * totalQuantity;
+
+                        // Create an order item and set its attributes
                         OrderItem orderItem = new OrderItem();
                         orderItem.setQuantity(totalQuantity);
-                        orderItem.setTotalPrice(product.getPrice() * totalQuantity); // Calculate total price based on product price and combined quantity
-                        orderItem.setOrder(order); // Associate the order item with the order
-                        orderItems.add(orderItem);
+                        orderItem.setTotalPrice(itemTotalPrice); // Use the calculated item total price
+
+                        // Save the order item to obtain its ID
+                        OrderItem savedOrderItem = orderItemRepository.save(orderItem);
+
+                        // Associate the order item with the saved order
+                        savedOrderItem.setOrder(savedOrder);
+
+                        // Save the order item again with the updated association
+                        orderItemRepository.save(savedOrderItem);
+
+                        // Create a product and associate it with the order item
+                        Product productEntity = createProductEntityFromRequest(product);
+                        productEntity.setOrderItem(savedOrderItem); // Associate with the saved order item
+                        productRepository.save(productEntity);
+
+                        // Accumulate the item's total price to the totalAmount
+                        totalAmount += itemTotalPrice;
                     }
                 }
 
+                order.setTotalAmount(totalAmount);
+
                 // Associate order items with the order
                 order.setOrderItems(orderItems);
-
-                // Save the order
-                Order savedOrder = orderRepository.save(order);
 
                 // Create and save customer
                 Customer customer = createCustomerFromRequest(customerInfo);
@@ -111,7 +135,7 @@ public class Order_Service {
             throw new ProductsNotFoundException(responseBody);
         }
     }
-    private Customer createCustomerFromRequest(CustomerRequest customerRequest) {
+    private Customer createCustomerFromRequest(CustomerInfo customerRequest) {
         Customer customer = new Customer();
         customer.setFullName(customerRequest.getFullName());
         customer.setFirstName(customerRequest.getFirstName());
@@ -121,7 +145,7 @@ public class Order_Service {
         customer.setConsumerId(customerRequest.getConsumerId());
         return customer;
     }
-    private ShippingAddress createShippingAddressFromRequest(CustomerRequest customerRequest) {
+    private ShippingAddress createShippingAddressFromRequest(CustomerInfo customerRequest) {
         ShippingAddress shippingAddress = new ShippingAddress();
         shippingAddress.setCountry(customerRequest.getCountry());
         shippingAddress.setStreetAddress(customerRequest.getStreetAddress());
@@ -129,5 +153,12 @@ public class Order_Service {
         shippingAddress.setPostalCode(customerRequest.getPostalCode());
         shippingAddress.setLocality(customerRequest.getLocality());
         return shippingAddress;
+    }
+    private Product createProductEntityFromRequest(ProductRequest productRequest){
+        Product product = new Product();
+        product.setProductId(productRequest.getId());
+        product.setProductName(productRequest.getProductName());
+        product.setPrice(productRequest.getPrice());
+        return product;
     }
 }
