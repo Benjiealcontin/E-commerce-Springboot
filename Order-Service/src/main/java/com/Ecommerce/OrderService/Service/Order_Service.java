@@ -1,16 +1,18 @@
 package com.Ecommerce.OrderService.Service;
 
 
+import com.Ecommerce.OrderService.Dto.*;
 import com.Ecommerce.OrderService.Entity.*;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
 import com.Ecommerce.OrderService.Exception.InsufficientProductQuantityException;
+import com.Ecommerce.OrderService.Exception.OrderNotFoundException;
 import com.Ecommerce.OrderService.Exception.ProductsNotFoundException;
 import com.Ecommerce.OrderService.Repository.*;
 
 import com.Ecommerce.OrderService.Request.CustomerInfo;
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Request.ProductRequest;
-import com.Ecommerce.OrderService.Dto.MessageResponse;
+import org.modelmapper.ModelMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -29,14 +31,16 @@ public class Order_Service {
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
     private final WebClient.Builder webClientBuilder;
+    private final ModelMapper modelMapper;
 
-    public Order_Service(OrderRepository orderRepository, CustomerRepository customerRepository, ShippingAddressRepository shippingAddressRepository, OrderItemRepository orderItemRepository, ProductRepository productRepository, WebClient.Builder webClientBuilder) {
+    public Order_Service(OrderRepository orderRepository, CustomerRepository customerRepository, ShippingAddressRepository shippingAddressRepository, OrderItemRepository orderItemRepository, ProductRepository productRepository, WebClient.Builder webClientBuilder, ModelMapper modelMapper) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.shippingAddressRepository = shippingAddressRepository;
         this.orderItemRepository = orderItemRepository;
         this.productRepository = productRepository;
         this.webClientBuilder = webClientBuilder;
+        this.modelMapper = modelMapper;
     }
 
     private static final String PRODUCT_SERVICE_URL = "http://Product-Service/api/product";
@@ -161,4 +165,53 @@ public class Order_Service {
         product.setPrice(productRequest.getPrice());
         return product;
     }
+
+
+    //Find Order by ID
+    public OrderDTO getOrderById(Long orderId) {
+        // Find the order by ID or throw an exception if not found
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found with ID: " + orderId));
+
+        // Map the Order entity to an OrderDTO
+        OrderDTO orderDTO = modelMapper.map(order, OrderDTO.class);
+
+        // Map OrderItems
+        List<OrderItemDTO> orderItemDTOs = order.getOrderItems().stream()
+                .map(orderItem -> {
+                    // Map each OrderItem to an OrderItemDTO
+                    OrderItemDTO orderItemDTO = modelMapper.map(orderItem, OrderItemDTO.class);
+
+                    // Map associated Product if present
+                    Product product = orderItem.getProduct();
+                    if (product != null) {
+                        ProductDTO productDTO = modelMapper.map(product, ProductDTO.class);
+                        orderItemDTO.setProduct(productDTO);
+                    }
+                    return orderItemDTO;
+                })
+                .collect(Collectors.toList());
+
+        // Set the mapped OrderItemDTOs to the OrderDTO
+        orderDTO.setOrderItems(orderItemDTOs);
+
+        // Map associated Customer if present
+        Customer customer = order.getCustomers();
+        if (customer != null) {
+            CustomerDTO customerDTO = modelMapper.map(customer, CustomerDTO.class);
+            orderDTO.setCustomer(customerDTO);
+        }
+
+        // Map associated ShippingAddress if present
+        ShippingAddress shippingAddress = order.getShippingAddresses();
+        if (shippingAddress != null) {
+            ShippingAddressDTO shippingAddressDTO = modelMapper.map(shippingAddress, ShippingAddressDTO.class);
+            orderDTO.setShippingAddress(shippingAddressDTO);
+        }
+
+        // Return the fully mapped OrderDTO
+        return orderDTO;
+    }
+
+
 }

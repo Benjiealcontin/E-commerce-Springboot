@@ -14,8 +14,9 @@ public class ShippingAddress {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "order_id", nullable = false)
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "order_id")
     private Order order;
 
     private String streetAddress;

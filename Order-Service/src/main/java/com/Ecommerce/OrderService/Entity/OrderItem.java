@@ -21,10 +21,10 @@ public class OrderItem {
     @JoinColumn(name = "order_id")
     private Order order;
 
-    @OneToMany(mappedBy = "orderItem", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private Set<Product> product;
+    @OneToOne(mappedBy = "orderItem", cascade = CascadeType.ALL)
+    @PrimaryKeyJoinColumn
+    private Product product;
 
     private int quantity;
     private double totalPrice;
-
 }

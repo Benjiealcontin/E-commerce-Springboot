@@ -14,7 +14,8 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @OneToOne
+    @MapsId
     @JoinColumn(name = "orderItem_id")
     private OrderItem orderItem;
 
