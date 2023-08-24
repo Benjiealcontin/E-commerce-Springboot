@@ -1,12 +1,16 @@
 package com.Ecommerce.OrderService.Controller;
 
+import com.Ecommerce.OrderService.Dto.OrderDTO;
+import com.Ecommerce.OrderService.Enum.OrderStatus;
 import com.Ecommerce.OrderService.Exception.InsufficientProductQuantityException;
 import com.Ecommerce.OrderService.Exception.OrderNotFoundException;
 import com.Ecommerce.OrderService.Exception.ProductsNotFoundException;
 import com.Ecommerce.OrderService.Request.CustomerInfo;
 import com.Ecommerce.OrderService.Request.OrderRequest;
+import com.Ecommerce.OrderService.Request.OrderStatusRequest;
 import com.Ecommerce.OrderService.Service.Order_Service;
 import com.Ecommerce.OrderService.Service.WebclientService;
+import com.Ecommerce.ProductService.Response.MessageResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -55,6 +59,32 @@ public class OrderController {
     public ResponseEntity<?> getAllOrders() {
         try{
             return ResponseEntity.ok(orderService.getAllOrders());
+        }catch (OrderNotFoundException e){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Delete Order
+    @DeleteMapping("/deleteOrder/{orderId}")
+    public ResponseEntity<?> deleteOrders(@PathVariable Long orderId) {
+        try{
+            orderService.deleteOrder(orderId);
+            return ResponseEntity.ok(new MessageResponse("Order Delete Successfully!"));
+        }catch (OrderNotFoundException e){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Update Order Details
+    @PutMapping("/updateOrder/{orderId}")
+    public ResponseEntity<?> updateOrdersDetails(@PathVariable Long orderId,@RequestBody OrderDTO updatedOrderDTO) {
+        try{
+            orderService.updateOrderDetails(orderId, updatedOrderDTO);
+            return ResponseEntity.ok(new MessageResponse("Order Updated Successfully!"));
         }catch (OrderNotFoundException e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }catch(Exception e){

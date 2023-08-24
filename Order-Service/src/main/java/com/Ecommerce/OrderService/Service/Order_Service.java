@@ -215,28 +215,35 @@ public class Order_Service {
 
     public List<OrderDTO> getAllOrders() {
         try {
+            // Retrieve all orders from the database
             List<Order> orders = orderRepository.findAll();
             List<OrderDTO> orderDTOs = new ArrayList<>();
 
+            // Iterate through each order and map it to an OrderDTO
             for (Order order : orders) {
                 OrderDTO orderDTO = mapOrderToOrderDTO(order);
                 orderDTOs.add(orderDTO);
             }
 
+            // Return the list of OrderDTOs
             return orderDTOs;
         } catch (Exception e) {
+            // If an exception occurs during the process
             e.printStackTrace();
             throw new OrderNotFoundException("Error while retrieving orders");
         }
     }
 
+    // Helper method to map an Order to an OrderDTO
     private OrderDTO mapOrderToOrderDTO(Order order) {
         OrderDTO orderDTO = modelMapper.map(order, OrderDTO.class);
 
+        // Map OrderItem data
         List<OrderItemDTO> orderItemDTOs = order.getOrderItems().stream()
                 .map(orderItem -> {
                     OrderItemDTO orderItemDTO = modelMapper.map(orderItem, OrderItemDTO.class);
 
+                    // Map associated Product data to ProductDTO
                     Product product = orderItem.getProduct();
                     if (product != null) {
                         ProductDTO productDTO = modelMapper.map(product, ProductDTO.class);
@@ -249,12 +256,14 @@ public class Order_Service {
 
         orderDTO.setOrderItems(orderItemDTOs);
 
+        // Map associated Customer data to CustomerDTO
         Customer customer = order.getCustomers();
         if (customer != null) {
             CustomerDTO customerDTO = modelMapper.map(customer, CustomerDTO.class);
             orderDTO.setCustomer(customerDTO);
         }
 
+        // Map associated ShippingAddress data to ShippingAddressDTO
         ShippingAddress shippingAddress = order.getShippingAddresses();
         if (shippingAddress != null) {
             ShippingAddressDTO shippingAddressDTO = modelMapper.map(shippingAddress, ShippingAddressDTO.class);
@@ -263,5 +272,78 @@ public class Order_Service {
 
         return orderDTO;
     }
+
+    //Delete Order
+    public void deleteOrder(Long orderId){
+        if (!orderRepository.existsById(orderId)) {
+            throw new OrderNotFoundException("Order with ID " + orderId + " not found.");
+        }
+        orderRepository.deleteById(orderId);
+    }
+
+    //Update Order Details
+    public void updateOrderDetails(Long orderId, OrderDTO updatedOrderDTO) {
+        Order existingOrder = orderRepository.findById(orderId).orElse(null);
+
+        if (existingOrder != null) {
+            // Update fields from the updatedOrderDTO to the existingOrder
+            existingOrder.setOrderDate(updatedOrderDTO.getOrderDate());
+            existingOrder.setOrderStatus(updatedOrderDTO.getOrderStatus());
+            existingOrder.setTotalAmount(updatedOrderDTO.getTotalAmount());
+
+            // Update Customer details if provided in the updatedOrderDTO
+            if (updatedOrderDTO.getCustomer() != null) {
+                CustomerDTO updatedCustomerDTO = updatedOrderDTO.getCustomer();
+                Customer existingCustomer = existingOrder.getCustomers();
+
+                if (existingCustomer != null) {
+                    // Update customer fields from the updatedCustomerDTO
+                    existingCustomer.setFullName(updatedCustomerDTO.getFullName());
+                    existingCustomer.setFirstName(updatedCustomerDTO.getFirstName());
+                    existingCustomer.setLastName(updatedCustomerDTO.getLastName());
+                    existingCustomer.setEmail(updatedCustomerDTO.getEmail());
+                    existingCustomer.setPhoneNumber(updatedCustomerDTO.getPhoneNumber());
+                }
+            }
+
+            // Update Order Items details if provided in the updatedOrderDTO
+            if (updatedOrderDTO.getOrderItems() != null) {
+                List<OrderItemDTO> updatedOrderItemDTOs = updatedOrderDTO.getOrderItems();
+
+                for (int i = 0; i < updatedOrderItemDTOs.size(); i++) {
+                    OrderItemDTO updatedOrderItemDTO = updatedOrderItemDTOs.get(i);
+                    OrderItem existingOrderItem = existingOrder.getOrderItems().get(i);
+
+                    if (existingOrderItem != null) {
+                        // Update order item fields from the updatedOrderItemDTO
+                        existingOrderItem.setQuantity(updatedOrderItemDTO.getQuantity());
+                        existingOrderItem.setTotalPrice(updatedOrderItemDTO.getTotalPrice());
+
+                        // Update Product details if provided in the updatedOrderItemDTO
+                        if (updatedOrderItemDTO.getProduct() != null) {
+                            ProductDTO updatedProductDTO = updatedOrderItemDTO.getProduct();
+                            Product existingProduct = existingOrderItem.getProduct();
+
+                            if (existingProduct != null) {
+                                // Update product fields from the updatedProductDTO
+                                existingProduct.setProductName(updatedProductDTO.getProductName());
+                                existingProduct.setPrice(updatedProductDTO.getPrice());
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Save the updated order and return the updated OrderDTO
+            Order updatedOrder = orderRepository.save(existingOrder);
+            modelMapper.map(updatedOrder, OrderDTO.class);
+        } else {
+            throw new OrderNotFoundException("Order with ID " + orderId + " not found");
+        }
+
+    }
+
+
+
 
 }
