@@ -213,5 +213,55 @@ public class Order_Service {
         return orderDTO;
     }
 
+    public List<OrderDTO> getAllOrders() {
+        try {
+            List<Order> orders = orderRepository.findAll();
+            List<OrderDTO> orderDTOs = new ArrayList<>();
+
+            for (Order order : orders) {
+                OrderDTO orderDTO = mapOrderToOrderDTO(order);
+                orderDTOs.add(orderDTO);
+            }
+
+            return orderDTOs;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new OrderNotFoundException("Error while retrieving orders");
+        }
+    }
+
+    private OrderDTO mapOrderToOrderDTO(Order order) {
+        OrderDTO orderDTO = modelMapper.map(order, OrderDTO.class);
+
+        List<OrderItemDTO> orderItemDTOs = order.getOrderItems().stream()
+                .map(orderItem -> {
+                    OrderItemDTO orderItemDTO = modelMapper.map(orderItem, OrderItemDTO.class);
+
+                    Product product = orderItem.getProduct();
+                    if (product != null) {
+                        ProductDTO productDTO = modelMapper.map(product, ProductDTO.class);
+                        orderItemDTO.setProduct(productDTO);
+                    }
+
+                    return orderItemDTO;
+                })
+                .collect(Collectors.toList());
+
+        orderDTO.setOrderItems(orderItemDTOs);
+
+        Customer customer = order.getCustomers();
+        if (customer != null) {
+            CustomerDTO customerDTO = modelMapper.map(customer, CustomerDTO.class);
+            orderDTO.setCustomer(customerDTO);
+        }
+
+        ShippingAddress shippingAddress = order.getShippingAddresses();
+        if (shippingAddress != null) {
+            ShippingAddressDTO shippingAddressDTO = modelMapper.map(shippingAddress, ShippingAddressDTO.class);
+            orderDTO.setShippingAddress(shippingAddressDTO);
+        }
+
+        return orderDTO;
+    }
 
 }

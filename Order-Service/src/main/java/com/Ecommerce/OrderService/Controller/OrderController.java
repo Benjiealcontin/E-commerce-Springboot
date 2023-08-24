@@ -48,7 +48,18 @@ public class OrderController {
        }catch(Exception e){
            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
        }
+    }
 
+    //Find All Orders
+    @GetMapping("/getAllOrders")
+    public ResponseEntity<?> getAllOrders() {
+        try{
+            return ResponseEntity.ok(orderService.getAllOrders());
+        }catch (OrderNotFoundException e){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
     }
 }
 
