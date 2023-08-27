@@ -2,6 +2,7 @@ package com.Ecommerce.ProductService.Service;
 
 import com.Ecommerce.ProductService.Entity.Product;
 import com.Ecommerce.ProductService.Entity.Review;
+import com.Ecommerce.ProductService.Exception.InsufficientStockException;
 import com.Ecommerce.ProductService.Exception.ProductAlreadyExistsException;
 import com.Ecommerce.ProductService.Exception.ProductNotFoundException;
 import com.Ecommerce.ProductService.Exception.ProductsNotFoundException;
@@ -9,6 +10,7 @@ import com.Ecommerce.ProductService.Repository.ProductRepository;
 import com.Ecommerce.ProductService.Repository.ReviewRepository;
 import com.Ecommerce.ProductService.Request.ProductRequest;
 import com.Ecommerce.ProductService.Request.ReviewRequest;
+import com.Ecommerce.ProductService.Request.StockQuantityRequest;
 import com.Ecommerce.ProductService.Response.MessageResponse;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -123,4 +125,24 @@ public class Product_Service {
         modelMapper.map(productRequest, existingProduct);
         productRepository.save(existingProduct);
     }
+
+    //Update Stock quantity of Product
+    public void updateQuantityOfProduct(long id, StockQuantityRequest stockQuantityRequest) {
+        Product existingProduct = productRepository.findById(id)
+                .orElseThrow(() -> new ProductNotFoundException("Product with id " + id + " not found"));
+
+        int requestedSubtraction = stockQuantityRequest.getSubtractionAmount();
+        int currentStock = existingProduct.getStockQuantity();
+
+        if (currentStock < requestedSubtraction) {
+            throw new InsufficientStockException("Insufficient stock for product with id " + id);
+        }
+
+        existingProduct.setStockQuantity(currentStock - requestedSubtraction);
+        productRepository.save(existingProduct);
+
+        // Debugging output
+        System.out.println("Updated Stock: " + existingProduct.getStockQuantity());
+    }
+
 }

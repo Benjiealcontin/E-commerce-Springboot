@@ -4,6 +4,7 @@ package com.Ecommerce.OrderService.Service;
 import com.Ecommerce.OrderService.Dto.*;
 import com.Ecommerce.OrderService.Entity.*;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
+import com.Ecommerce.OrderService.Exception.DeliveredOrdersNotFoundException;
 import com.Ecommerce.OrderService.Exception.InsufficientProductQuantityException;
 import com.Ecommerce.OrderService.Exception.OrderNotFoundException;
 import com.Ecommerce.OrderService.Exception.ProductsNotFoundException;
@@ -12,10 +13,12 @@ import com.Ecommerce.OrderService.Repository.*;
 import com.Ecommerce.OrderService.Request.CustomerInfo;
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Request.ProductRequest;
+import com.Ecommerce.ProductService.Request.StockQuantityRequest;
 import org.modelmapper.ModelMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -68,11 +71,6 @@ public class Order_Service {
                     .block();
 
             if (products != null && !products.isEmpty()) {
-                // Create a new order
-                Order order = new Order();
-                order.setOrderStatus(OrderStatus.PENDING);
-                List<OrderItem> orderItems = new ArrayList<>();
-                Order savedOrder = orderRepository.save(order);
 
                 // Process each product and order item
                 for (ProductRequest product : products) {
@@ -88,6 +86,13 @@ public class Order_Service {
                         if (totalQuantity > product.getStockQuantity()) {
                             throw new InsufficientProductQuantityException("Insufficient quantity for product: " + product.getProductName());
                         }
+
+                        // Create a new order
+                        Order order = new Order();
+                        order.setOrderStatus(OrderStatus.PENDING);
+                        List<OrderItem> orderItems = new ArrayList<>();
+                        Order savedOrder = orderRepository.save(order);
+
                         // Calculate total price based on product price and combined quantity
                         double itemTotalPrice = product.getPrice() * totalQuantity;
 
@@ -110,28 +115,31 @@ public class Order_Service {
                         productEntity.setOrderItem(savedOrderItem); // Associate with the saved order item
                         productRepository.save(productEntity);
 
+                        // Call the function to update the product's stock quantity
+                        updateProductStockQuantity(product.getId(), totalQuantity, bearerToken);
+
                         // Accumulate the item's total price to the totalAmount
                         totalAmount += itemTotalPrice;
+
+                        order.setTotalAmount(totalAmount);
+
+                        // Associate order items with the order
+                        order.setOrderItems(orderItems);
+
+                        // Create and save customer
+                        Customer customer = createCustomerFromRequest(customerInfo);
+                        customer.setOrder(savedOrder);
+                        customerRepository.save(customer);
+
+                        // Create and save shipping address
+                        ShippingAddress shipping = createShippingAddressFromRequest(customerInfo);
+                        shipping.setOrder(savedOrder);
+                        shippingAddressRepository.save(shipping);
+
+                        // Save the order to the repository if needed
+                        orderRepository.save(order);
                     }
                 }
-
-                order.setTotalAmount(totalAmount);
-
-                // Associate order items with the order
-                order.setOrderItems(orderItems);
-
-                // Create and save customer
-                Customer customer = createCustomerFromRequest(customerInfo);
-                customer.setOrder(savedOrder);
-                customerRepository.save(customer);
-
-                // Create and save shipping address
-                ShippingAddress shipping = createShippingAddressFromRequest(customerInfo);
-                shipping.setOrder(savedOrder);
-                shippingAddressRepository.save(shipping);
-
-                // Save the order to the repository if needed
-                orderRepository.save(order);
             }
             return new MessageResponse("Order created successfully");
         }catch (WebClientResponseException.NotFound ex) {
@@ -139,6 +147,7 @@ public class Order_Service {
             throw new ProductsNotFoundException(responseBody);
         }
     }
+
     private Customer createCustomerFromRequest(CustomerInfo customerRequest) {
         Customer customer = new Customer();
         customer.setFullName(customerRequest.getFullName());
@@ -166,6 +175,16 @@ public class Order_Service {
         return product;
     }
 
+    private void updateProductStockQuantity(Long productId, int quantity, String bearerToken) {
+        // Make a PUT request to update stock quantity in the Product Service
+        webClientBuilder.build().put()
+                .uri(PRODUCT_SERVICE_URL + "/update/quantity/{id}", productId)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                .body(BodyInserters.fromValue(new StockQuantityRequest(quantity)))
+                .retrieve()
+                .toBodilessEntity()
+                .block();
+    }
 
     //Find Order by ID
     public OrderDTO getOrderById(Long orderId) {
@@ -213,6 +232,30 @@ public class Order_Service {
         return orderDTO;
     }
 
+    //Find Customer Order by ConsumerId
+    public List<OrderDTO> getOrdersByConsumerId(String consumerId) {
+        List<Order> orders = orderRepository.findByCustomers_ConsumerId(consumerId);
+        if (orders.isEmpty()) {
+            throw new OrderNotFoundException("No orders found with consumerId: " + consumerId);
+        }
+        return orders.stream()
+                .map(this::mapOrderToOrderDTO)
+                .collect(Collectors.toList());
+    }
+
+    //Find All Orders by OrderStatus
+    public List<OrderDTO> getOrdersByOrderStatus(OrderStatus orderStatus) {
+        List<Order> orders = orderRepository.findByOrderStatus(orderStatus);
+
+        if (orders.isEmpty()) {
+            throw new OrderNotFoundException("No orders found with status: " + orderStatus);
+        }
+        return orders.stream()
+                .map(this::mapOrderToOrderDTO)
+                .collect(Collectors.toList());
+    }
+
+    //Find All Order
     public List<OrderDTO> getAllOrders() {
         try {
             // Retrieve all orders from the database
@@ -232,6 +275,19 @@ public class Order_Service {
             e.printStackTrace();
             throw new OrderNotFoundException("Error while retrieving orders");
         }
+    }
+
+    //Find All History Order of customer
+    public List<OrderDTO> getDeliveredOrdersByConsumerId(String consumerId) {
+        List<Order> deliveredOrders = orderRepository.findByCustomers_ConsumerIdAndOrderStatus(consumerId, OrderStatus.DELIVERED);
+
+        if (deliveredOrders.isEmpty()) {
+            throw new DeliveredOrdersNotFoundException("No delivered orders found for consumer: " + consumerId);
+        }
+
+        return deliveredOrders.stream()
+                .map(this::mapOrderToOrderDTO)
+                .collect(Collectors.toList());
     }
 
     // Helper method to map an Order to an OrderDTO

@@ -2,11 +2,13 @@ package com.Ecommerce.ProductService.Controller;
 
 import com.Ecommerce.ProductService.Entity.Product;
 import com.Ecommerce.ProductService.Entity.Review;
+import com.Ecommerce.ProductService.Exception.InsufficientStockException;
 import com.Ecommerce.ProductService.Exception.ProductAlreadyExistsException;
 import com.Ecommerce.ProductService.Exception.ProductNotFoundException;
 import com.Ecommerce.ProductService.Exception.ProductsNotFoundException;
 import com.Ecommerce.ProductService.Request.ProductRequest;
 import com.Ecommerce.ProductService.Request.ReviewRequest;
+import com.Ecommerce.ProductService.Request.StockQuantityRequest;
 import com.Ecommerce.ProductService.Response.MessageResponse;
 import com.Ecommerce.ProductService.Response.ProductResponse;
 import com.Ecommerce.ProductService.Response.ValidationErrorResponse;
@@ -154,6 +156,20 @@ public class ProductController {
         }catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/update/quantity/{id}")
+    public ResponseEntity<?> updateQuantityOfProduct(@PathVariable Long id, @RequestBody StockQuantityRequest stockQuantityRequest) {
+        try {
+            productService.updateQuantityOfProduct(id, stockQuantityRequest);
+            return ResponseEntity.ok(new MessageResponse("Product Stock Quantity Update Successfully!"));
+        } catch (ProductNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (InsufficientStockException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }

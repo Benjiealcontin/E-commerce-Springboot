@@ -2,6 +2,7 @@ package com.Ecommerce.OrderService.Controller;
 
 import com.Ecommerce.OrderService.Dto.OrderDTO;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
+import com.Ecommerce.OrderService.Exception.DeliveredOrdersNotFoundException;
 import com.Ecommerce.OrderService.Exception.InsufficientProductQuantityException;
 import com.Ecommerce.OrderService.Exception.OrderNotFoundException;
 import com.Ecommerce.OrderService.Exception.ProductsNotFoundException;
@@ -52,6 +53,44 @@ public class OrderController {
        }catch(Exception e){
            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
        }
+    }
+
+    //Find Order of Consumer
+    @GetMapping("/customerOrder")
+    public ResponseEntity<?> getOrderByConsumerId(@RequestHeader("Authorization") String bearerToken) {
+        try{
+            CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
+            return ResponseEntity.ok(orderService.getOrdersByConsumerId(customerInfo.getConsumerId()));
+        }catch (OrderNotFoundException e){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Find Orders by Order Status
+    @GetMapping("/status/{orderStatus}")
+    public ResponseEntity<?> getOrderByConsumerId(@PathVariable OrderStatus orderStatus) {
+        try{
+            return ResponseEntity.ok(orderService.getOrdersByOrderStatus(orderStatus));
+        }catch (OrderNotFoundException e){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Find All Delivered history of customer
+    @GetMapping("/customer/history")
+    public ResponseEntity<?> getDeliveredOrdersByConsumerId(@RequestHeader("Authorization") String bearerToken) {
+        try{
+            CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
+            return ResponseEntity.ok(orderService.getDeliveredOrdersByConsumerId(customerInfo.getConsumerId()));
+        }catch (DeliveredOrdersNotFoundException e){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
     }
 
     //Find All Orders
