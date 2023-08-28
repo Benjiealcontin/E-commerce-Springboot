@@ -166,7 +166,7 @@ public class Order_Service {
     // Updates the stock quantity of a product using WebClient PUT request
     private void updateProductStockQuantity(Long productId, int quantity, String bearerToken) {
         webClientBuilder.build().put()
-                .uri(PRODUCT_SERVICE_URL + "/update/quantity/{id}", productId)
+                .uri(PRODUCT_SERVICE_URL + "/update-quantity/{id}", productId)
                 .header(HttpHeaders.AUTHORIZATION, bearerToken)
                 .body(BodyInserters.fromValue(new StockQuantityRequest(quantity)))
                 .retrieve()

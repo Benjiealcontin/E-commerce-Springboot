@@ -34,7 +34,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,"/api/product/add-product").hasAnyRole(ADMIN,SELLER)
                         .requestMatchers(HttpMethod.POST,"/api/product/add-review/*").hasRole(CONSUMER)
                         .requestMatchers(HttpMethod.DELETE,"/api/product/delete/*").hasAnyRole(ADMIN,SELLER)
-                        .requestMatchers(HttpMethod.PUT,"/api/product/update/*").hasAnyRole(ADMIN,SELLER)
+                        .requestMatchers(HttpMethod.PUT,
+                       "/api/product/update/*",
+                                "/api/product/update/update-image/*",
+                                "/api/product/update/update-quantity/*").hasAnyRole(ADMIN,SELLER,CONSUMER)
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

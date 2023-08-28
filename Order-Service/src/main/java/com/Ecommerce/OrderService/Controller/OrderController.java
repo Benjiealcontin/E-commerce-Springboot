@@ -43,7 +43,7 @@ public class OrderController {
     }
 
     //Find Order by ID
-    @GetMapping("/{orderId}")
+    @GetMapping("/getOrder/{orderId}")
     public ResponseEntity<?> getOrderById(@PathVariable Long orderId) {
        try{
            return ResponseEntity.ok(orderService.getOrderById(orderId));
@@ -54,7 +54,7 @@ public class OrderController {
        }
     }
 
-    //Find Order of Consumer
+    //Get Order of Consumer
     @GetMapping("/customerOrder")
     public ResponseEntity<?> getOrderByConsumerId(@RequestHeader("Authorization") String bearerToken) {
         try{

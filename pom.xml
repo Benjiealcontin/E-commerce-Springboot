@@ -15,6 +15,7 @@
         <module>Product-Service</module>
         <module>Order-Service</module>
         <module>Keycloak-Service</module>
+        <module>Customer-Service</module>
     </modules>
 
     <properties>

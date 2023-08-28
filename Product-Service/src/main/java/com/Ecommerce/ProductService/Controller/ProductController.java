@@ -33,18 +33,19 @@ public class ProductController {
 
     //Add product
     @PostMapping("/add-product")
-    public ResponseEntity<?> createProduct(@RequestParam("image") MultipartFile file,
+    public ResponseEntity<?> createProduct(@Valid @RequestParam("image") MultipartFile file,
                                            @RequestParam("productName") String productName,
                                            @RequestParam("description") String description,
                                            @RequestParam("category") String category,
                                            @RequestParam("price") double price,
-                                           @RequestParam("stockQuantity") int stockQuantity){
+                                           @RequestParam("stockQuantity") int stockQuantity,
+                                           BindingResult bindingResult){
         try{
             // Validate the ProductRequest using the validation service
-//            if (bindingResult.hasErrors()) {
-//                ValidationErrorResponse validationErrorResponse = validationService.buildValidationErrorResponse(bindingResult);
-//                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validationErrorResponse);
-//            }
+            if (bindingResult.hasErrors()) {
+                ValidationErrorResponse validationErrorResponse = validationService.buildValidationErrorResponse(bindingResult);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validationErrorResponse);
+            }
             ProductRequest productRequest = new ProductRequest(productName, description, category, price, stockQuantity);
             return ResponseEntity.ok(productService.createProduct(productRequest, file));
         }catch (ProductAlreadyExistsException e) {
@@ -110,6 +111,7 @@ public class ProductController {
         }
     }
 
+    //Display Image
     @GetMapping("/get/image/{name}")
     public ResponseEntity<ImageResponseDTO> getImage(@PathVariable("name") String name) {
         try {
@@ -124,8 +126,6 @@ public class ProductController {
             return ResponseEntity.notFound().build();
         }
     }
-
-
 
     //Find All Review by Product ID
     @GetMapping("/reviews/{productId}")
@@ -179,15 +179,35 @@ public class ProductController {
         }
     }
 
-    @PutMapping("/update/quantity/{id}")
+    //Update Quantity of Product
+    @PutMapping("/update-quantity/{id}")
     public ResponseEntity<?> updateQuantityOfProduct(@PathVariable Long id, @RequestBody StockQuantityRequest stockQuantityRequest) {
         try {
             productService.updateQuantityOfProduct(id, stockQuantityRequest);
-            return ResponseEntity.ok(new MessageResponse("Product Stock Quantity Update Successfully!"));
+            return ResponseEntity.ok(new MessageResponse("Product Stock Quantity Update Successfully."));
         } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (InsufficientStockException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Update Image
+    @PutMapping("/update-image/{productId}")
+    public ResponseEntity<?> updateProductImage(
+            @PathVariable Long productId,
+            @RequestParam("image") MultipartFile imageFile)
+    {
+        try {
+            Product product = productService.getProductById(productId);
+
+            productService.updateProductImage(product, imageFile);
+
+            return ResponseEntity.ok(new MessageResponse("Product image updated successfully."));
+        }catch (ProductNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }

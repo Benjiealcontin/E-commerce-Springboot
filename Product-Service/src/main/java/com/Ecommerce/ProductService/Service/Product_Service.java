@@ -118,6 +118,12 @@ public class Product_Service {
         return productWithImageDTO;
     }
 
+    //Get Product by ID
+    public Product getProductById(Long productId) {
+        Optional<Product> productOptional = productRepository.findById(productId);
+        return productOptional.orElseThrow(() -> new ProductNotFoundException("Product with ID " + productId + " not found."));
+    }
+
     //Get Products by IDs
     public List<ProductInfoDTO> getProductsInfoByIds(List<Long> productIds) {
         List<ProductInfoDTO> productsInfo = new ArrayList<>();
@@ -218,6 +224,24 @@ public class Product_Service {
 
         // Debugging output
         System.out.println("Updated Stock: " + existingProduct.getStockQuantity());
+    }
+
+    //Update Image
+    public void updateProductImage(Product product, MultipartFile newImageFile) throws IOException {
+        Image existingImage = product.getImage();
+
+        if (existingImage != null) {
+            // Delete the existing image from both the product and the database
+            product.setImage(null);
+            imageRepository.delete(existingImage);
+        }
+
+        // Create and save the new image entity
+        Image newImage = createImageEntity(newImageFile, product);
+        imageRepository.save(newImage);
+
+        // Update the product's image reference
+        product.setImage(newImage);
     }
 
 }
