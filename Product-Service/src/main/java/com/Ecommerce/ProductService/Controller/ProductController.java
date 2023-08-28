@@ -1,34 +1,23 @@
 package com.Ecommerce.ProductService.Controller;
 
-import com.Ecommerce.ProductService.Dto.ProductWithImageDTO;
-import com.Ecommerce.ProductService.Entity.Image;
+import com.Ecommerce.ProductService.Dto.*;
 import com.Ecommerce.ProductService.Entity.Product;
 import com.Ecommerce.ProductService.Entity.Review;
-import com.Ecommerce.ProductService.Exception.InsufficientStockException;
-import com.Ecommerce.ProductService.Exception.ProductAlreadyExistsException;
-import com.Ecommerce.ProductService.Exception.ProductNotFoundException;
-import com.Ecommerce.ProductService.Exception.ProductsNotFoundException;
-import com.Ecommerce.ProductService.Repository.ImageRepository;
+import com.Ecommerce.ProductService.Exception.*;
 import com.Ecommerce.ProductService.Request.ProductRequest;
 import com.Ecommerce.ProductService.Request.ReviewRequest;
 import com.Ecommerce.ProductService.Request.StockQuantityRequest;
-import com.Ecommerce.ProductService.Dto.MessageResponse;
-import com.Ecommerce.ProductService.Dto.ValidationErrorResponse;
 import com.Ecommerce.ProductService.Service.Product_Service;
 import com.Ecommerce.ProductService.Service.ValidationService;
-import com.Ecommerce.ProductService.Utils.ImageUtility;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-
-import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("api/product")
@@ -36,12 +25,10 @@ public class ProductController {
 
     private final Product_Service productService;
     private final ValidationService validationService;
-    private final ImageRepository imageRepository;
 
-    public ProductController(Product_Service productService, ValidationService validationService, ImageRepository imageRepository) {
+    public ProductController(Product_Service productService, ValidationService validationService) {
         this.productService = productService;
         this.validationService = validationService;
-        this.imageRepository = imageRepository;
     }
 
     //Add product
@@ -89,7 +76,7 @@ public class ProductController {
     public ResponseEntity<?> getProductById(@PathVariable Long productId){
         try{
             return ResponseEntity.ok(productService.getProductWithImageDetails(productId));
-        }catch (ProductNotFoundException e) {
+        }catch (ProductNotFoundException | ImageNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
@@ -100,7 +87,7 @@ public class ProductController {
     @GetMapping("/getByIds")
     public ResponseEntity<?> getProductsByIds(@RequestParam List<Long> productIds) {
         try {
-            List<Product> products = productService.getProductsByIds(productIds);
+            List<ProductInfoDTO> products = productService.getProductsInfoByIds(productIds);
             return ResponseEntity.ok(products);
         } catch (ProductsNotFoundException e) {
             List<Long> missingProductIds = e.getMissingProductIds();
@@ -123,22 +110,21 @@ public class ProductController {
         }
     }
 
-    @GetMapping(path = {"/get/image/{name}"})
-    public ResponseEntity<byte[]> getImage(@PathVariable("name") String name) throws IOException {
-        final Optional<Image> dbImage = imageRepository.findByName(name);
+    @GetMapping("/get/image/{name}")
+    public ResponseEntity<ImageResponseDTO> getImage(@PathVariable("name") String name) {
+        try {
+            ImageResponseDTO imageResponse = productService.getImageByName(name);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(imageResponse.getContentType());
 
-        if (dbImage.isPresent()) {
-            Image image = dbImage.get();
-            return ResponseEntity
-                    .ok()
-                    .contentType(MediaType.valueOf(image.getType()))
-                    .body(ImageUtility.decompressImage(image.getImage()));
-        } else {
-            return ResponseEntity
-                    .notFound()
-                    .build();
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(imageResponse);
+        } catch (ImageNotFoundException e) {
+            return ResponseEntity.notFound().build();
         }
     }
+
 
 
     //Find All Review by Product ID

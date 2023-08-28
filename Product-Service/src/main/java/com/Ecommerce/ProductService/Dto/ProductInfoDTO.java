@@ -7,15 +7,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductWithImageDTO {
-    private long id;
+public class ProductInfoDTO {
+    private Long id;
     private String productName;
-    private String description;
-    private String category;
     private double price;
     private int stockQuantity;
-
-    private String imageName;
-    private String imageType;
-    private byte[] imageData;
 }

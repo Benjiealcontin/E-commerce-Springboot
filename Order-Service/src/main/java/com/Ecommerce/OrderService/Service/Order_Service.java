@@ -13,7 +13,7 @@ import com.Ecommerce.OrderService.Repository.*;
 import com.Ecommerce.OrderService.Request.CustomerInfo;
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Request.ProductRequest;
-import com.Ecommerce.ProductService.Request.StockQuantityRequest;
+import com.Ecommerce.OrderService.Request.StockQuantityRequest;
 import org.modelmapper.ModelMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -47,107 +47,145 @@ public class Order_Service {
     }
 
     private static final String PRODUCT_SERVICE_URL = "http://Product-Service/api/product";
-    double totalAmount = 0.0;
 
     //Add Order
     public MessageResponse addOrder(OrderRequest orderRequest, CustomerInfo customerInfo, String bearerToken) {
         try {
             // Extract product IDs from the order request
-            List<Long> productIds = orderRequest.getOrderItems().stream()
-                    .map(OrderRequest.OrderItemRequest::getProductId)
-                    .toList();
+            List<Long> productIds = extractProductIds(orderRequest);
 
-            // Convert product IDs to a comma-separated string
-            String commaSeparatedIds = productIds.stream()
-                    .map(String::valueOf)
-                    .collect(Collectors.joining(","));
+            // Fetch product details based on extracted product IDs
+            List<ProductRequest> products = fetchProducts(productIds, bearerToken);
 
-            // Fetch product details from the Product Service
-            List<ProductRequest> products = webClientBuilder.build().get()
-                    .uri(PRODUCT_SERVICE_URL + "/getByIds?productIds={productIds}", commaSeparatedIds)
-                    .header(HttpHeaders.AUTHORIZATION, bearerToken)
-                    .retrieve()
-                    .bodyToMono(new ParameterizedTypeReference<List<ProductRequest>>() {})
-                    .block();
-
-            if (products != null && !products.isEmpty()) {
-
-                // Process each product and order item
-                for (ProductRequest product : products) {
-                    int totalQuantity = 0;
-
-                    for (OrderRequest.OrderItemRequest itemRequest : orderRequest.getOrderItems()) {
-                        if (itemRequest.getProductId().equals(product.getId())) {
-                            totalQuantity += itemRequest.getQuantity();
-                        }
-                    }
-
-                    if (totalQuantity > 0) {
-                        if (totalQuantity > product.getStockQuantity()) {
-                            throw new InsufficientProductQuantityException("Insufficient quantity for product: " + product.getProductName());
-                        }
-
-                        // Create a new order
-                        Order order = new Order();
-                        order.setOrderStatus(OrderStatus.PENDING);
-                        List<OrderItem> orderItems = new ArrayList<>();
-                        Order savedOrder = orderRepository.save(order);
-
-                        // Calculate total price based on product price and combined quantity
-                        double itemTotalPrice = product.getPrice() * totalQuantity;
-
-                        // Create an order item and set its attributes
-                        OrderItem orderItem = new OrderItem();
-                        orderItem.setQuantity(totalQuantity);
-                        orderItem.setTotalPrice(itemTotalPrice); // Use the calculated item total price
-
-                        // Save the order item to obtain its ID
-                        OrderItem savedOrderItem = orderItemRepository.save(orderItem);
-
-                        // Associate the order item with the saved order
-                        savedOrderItem.setOrder(savedOrder);
-
-                        // Save the order item again with the updated association
-                        orderItemRepository.save(savedOrderItem);
-
-                        // Create a product and associate it with the order item
-                        Product productEntity = createProductEntityFromRequest(product);
-                        productEntity.setOrderItem(savedOrderItem); // Associate with the saved order item
-                        productRepository.save(productEntity);
-
-                        // Call the function to update the product's stock quantity
-                        updateProductStockQuantity(product.getId(), totalQuantity, bearerToken);
-
-                        // Accumulate the item's total price to the totalAmount
-                        totalAmount += itemTotalPrice;
-
-                        order.setTotalAmount(totalAmount);
-
-                        // Associate order items with the order
-                        order.setOrderItems(orderItems);
-
-                        // Create and save customer
-                        Customer customer = createCustomerFromRequest(customerInfo);
-                        customer.setOrder(savedOrder);
-                        customerRepository.save(customer);
-
-                        // Create and save shipping address
-                        ShippingAddress shipping = createShippingAddressFromRequest(customerInfo);
-                        shipping.setOrder(savedOrder);
-                        shippingAddressRepository.save(shipping);
-
-                        // Save the order to the repository if needed
-                        orderRepository.save(order);
-                    }
-                }
+            // Proceed with order processing if products are available
+            if (!products.isEmpty()) {
+                processOrderItems(orderRequest, products, customerInfo, bearerToken);
             }
+
             return new MessageResponse("Order created successfully");
-        }catch (WebClientResponseException.NotFound ex) {
+        } catch (WebClientResponseException.NotFound ex) {
+            // If products are not found, throw a custom exception with the response body
             String responseBody = ex.getResponseBodyAsString();
             throw new ProductsNotFoundException(responseBody);
         }
     }
 
+    //Get All the Product Ids from the Order Request
+    private List<Long> extractProductIds(OrderRequest orderRequest) {
+        return orderRequest.getOrderItems().stream()
+                .map(OrderRequest.OrderItemRequest::getProductId)
+                .collect(Collectors.toList());
+    }
+
+    private List<ProductRequest> fetchProducts(List<Long> productIds, String bearerToken) {
+        // Create a comma-separated string of product IDs
+        String commaSeparatedIds = productIds.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+
+        // Use WebClient to send a GET request to the product service
+        return webClientBuilder.build().get()
+                .uri(PRODUCT_SERVICE_URL + "/getByIds?productIds={productIds}", commaSeparatedIds)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                .retrieve()
+                // Convert the response body to a list of ProductRequest objects
+                .bodyToMono(new ParameterizedTypeReference<List<ProductRequest>>() {})
+                // Block and wait for the response
+                .block();
+    }
+
+    private void processOrderItems(OrderRequest orderRequest, List<ProductRequest> products, CustomerInfo customerInfo, String bearerToken) {
+        double totalAmount = 0.0;
+
+        // Create and save a new order
+        Order savedOrder = createAndSaveOrder();
+
+        // Iterate through each product to process order items
+        // Count how many quantity customer Order
+        for (ProductRequest product : products) {
+            int totalQuantity = calculateTotalQuantity(orderRequest, product);
+
+            if (totalQuantity > 0 && totalQuantity <= product.getStockQuantity()) {
+                double itemTotalPrice = product.getPrice() * totalQuantity;
+
+                OrderItem savedOrderItem = createAndSaveOrderItem(savedOrder, totalQuantity, itemTotalPrice);
+                associateOrderItemWithProduct(savedOrderItem, product);
+
+                updateProductStockQuantity(product.getId(), totalQuantity, bearerToken);
+
+                totalAmount += itemTotalPrice;
+            } else {
+                throw new InsufficientProductQuantityException("Insufficient quantity for product: " + product.getProductName());
+            }
+        }
+
+        savedOrder.setTotalAmount(totalAmount);
+        createAndSaveCustomerAndShipping(savedOrder, customerInfo);
+    }
+
+    // Calculates the total quantity of a given product in the order
+    private int calculateTotalQuantity(OrderRequest orderRequest, ProductRequest product) {
+        return orderRequest.getOrderItems().stream()
+                .filter(item -> item.getProductId().equals(product.getId()))
+                .mapToInt(OrderRequest.OrderItemRequest::getQuantity)
+                .sum();
+    }
+
+    // Creates and saves a new order with a PENDING status
+    private Order createAndSaveOrder() {
+        Order order = new Order();
+        order.setOrderStatus(OrderStatus.PENDING);
+        return orderRepository.save(order);
+    }
+
+    // Creates and saves an order item associated with an order
+        private OrderItem createAndSaveOrderItem(Order order, int totalQuantity, double itemTotalPrice) {
+            OrderItem orderItem = new OrderItem();
+            orderItem.setQuantity(totalQuantity);
+            orderItem.setTotalPrice(itemTotalPrice);
+            orderItem.setOrder(order);
+            return orderItemRepository.save(orderItem);
+        }
+
+    // Associates an order item with a product entity and saves it
+    private void associateOrderItemWithProduct(OrderItem orderItem, ProductRequest product) {
+        Product productEntity = createProductEntityFromRequest(product);
+        productEntity.setOrderItem(orderItem);
+        productRepository.save(productEntity);
+    }
+
+    // Creates a product entity based on the product request
+    private Product createProductEntityFromRequest(ProductRequest productRequest) {
+        Product product = new Product();
+        product.setProductId(productRequest.getId());
+        product.setProductName(productRequest.getProductName());
+        product.setPrice(productRequest.getPrice());
+        return product;
+    }
+
+    // Updates the stock quantity of a product using WebClient PUT request
+    private void updateProductStockQuantity(Long productId, int quantity, String bearerToken) {
+        webClientBuilder.build().put()
+                .uri(PRODUCT_SERVICE_URL + "/update/quantity/{id}", productId)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                .body(BodyInserters.fromValue(new StockQuantityRequest(quantity)))
+                .retrieve()
+                .toBodilessEntity()
+                .block();
+    }
+
+    // Creates and saves customer and shipping information associated with an order
+    private void createAndSaveCustomerAndShipping(Order order, CustomerInfo customerInfo) {
+        Customer customer = createCustomerFromRequest(customerInfo);
+        customer.setOrder(order);
+        customerRepository.save(customer);
+
+        ShippingAddress shipping = createShippingAddressFromRequest(customerInfo);
+        shipping.setOrder(order);
+        shippingAddressRepository.save(shipping);
+    }
+
+    // Creates a customer entity based on customer information
     private Customer createCustomerFromRequest(CustomerInfo customerRequest) {
         Customer customer = new Customer();
         customer.setFullName(customerRequest.getFullName());
@@ -158,6 +196,8 @@ public class Order_Service {
         customer.setConsumerId(customerRequest.getConsumerId());
         return customer;
     }
+
+    // Creates a shipping address entity based on customer information
     private ShippingAddress createShippingAddressFromRequest(CustomerInfo customerRequest) {
         ShippingAddress shippingAddress = new ShippingAddress();
         shippingAddress.setCountry(customerRequest.getCountry());
@@ -166,24 +206,6 @@ public class Order_Service {
         shippingAddress.setPostalCode(customerRequest.getPostalCode());
         shippingAddress.setLocality(customerRequest.getLocality());
         return shippingAddress;
-    }
-    private Product createProductEntityFromRequest(ProductRequest productRequest){
-        Product product = new Product();
-        product.setProductId(productRequest.getId());
-        product.setProductName(productRequest.getProductName());
-        product.setPrice(productRequest.getPrice());
-        return product;
-    }
-
-    private void updateProductStockQuantity(Long productId, int quantity, String bearerToken) {
-        // Make a PUT request to update stock quantity in the Product Service
-        webClientBuilder.build().put()
-                .uri(PRODUCT_SERVICE_URL + "/update/quantity/{id}", productId)
-                .header(HttpHeaders.AUTHORIZATION, bearerToken)
-                .body(BodyInserters.fromValue(new StockQuantityRequest(quantity)))
-                .retrieve()
-                .toBodilessEntity()
-                .block();
     }
 
     //Find Order by ID

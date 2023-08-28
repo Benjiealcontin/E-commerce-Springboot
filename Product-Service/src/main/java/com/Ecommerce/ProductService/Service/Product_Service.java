@@ -1,5 +1,7 @@
 package com.Ecommerce.ProductService.Service;
 
+import com.Ecommerce.ProductService.Dto.ImageResponseDTO;
+import com.Ecommerce.ProductService.Dto.ProductInfoDTO;
 import com.Ecommerce.ProductService.Dto.ProductWithImageDTO;
 import com.Ecommerce.ProductService.Entity.Image;
 import com.Ecommerce.ProductService.Entity.Product;
@@ -15,6 +17,7 @@ import com.Ecommerce.ProductService.Dto.MessageResponse;
 import com.Ecommerce.ProductService.Utils.ImageUtility;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -55,10 +58,12 @@ public class Product_Service {
         return new MessageResponse("Product Added Successfully!");
     }
 
+    //Map the ProductRequest and Product
     private Product mapProductRequestToProduct(ProductRequest productRequest) {
         return modelMapper.map(productRequest, Product.class);
     }
 
+    //Create a Image
     private Image createImageEntity(MultipartFile file, Product product) throws IOException {
         String originalFilename = file.getOriginalFilename();
         String contentType = file.getContentType();
@@ -72,7 +77,6 @@ public class Product_Service {
                 .build();
     }
 
-
     //Creating Review of products
     public MessageResponse createProductReview(Long productId, ReviewRequest reviewRequest){
         productRepository.findById(productId)
@@ -82,6 +86,21 @@ public class Product_Service {
         reviewRepository.save(review);
 
         return new MessageResponse("Review Added Successfully!");
+    }
+
+    //Get the Image and Decode
+    public ImageResponseDTO getImageByName(String name) throws ImageNotFoundException {
+        final Optional<Image> dbImage = imageRepository.findByName(name);
+
+        if (dbImage.isPresent()) {
+            Image image = dbImage.get();
+            byte[] imageData = ImageUtility.decompressImage(image.getImage());
+            MediaType contentType = MediaType.valueOf(image.getType());
+
+            return new ImageResponseDTO(imageData, contentType);
+        } else {
+            throw new ImageNotFoundException("Image not found with the given name");
+        }
     }
 
     //Get Product by ID
@@ -95,19 +114,26 @@ public class Product_Service {
         ProductWithImageDTO productWithImageDTO = modelMapper.map(product, ProductWithImageDTO.class);
         productWithImageDTO.setImageName(image.getName());
         productWithImageDTO.setImageType(image.getType());
-
+        productWithImageDTO.setImageData(image.getImage());
         return productWithImageDTO;
     }
 
     //Get Products by IDs
-    public List<Product> getProductsByIds(List<Long> productIds) {
-        List<Product> products = new ArrayList<>();
+    public List<ProductInfoDTO> getProductsInfoByIds(List<Long> productIds) {
+        List<ProductInfoDTO> productsInfo = new ArrayList<>();
         List<Long> missingProductIds = new ArrayList<>();
 
         for (Long productId : productIds) {
-            Optional<Product> product = productRepository.findById(productId);
-            if (product.isPresent()) {
-                products.add(product.get());
+            Optional<Product> productOptional = productRepository.findById(productId);
+            if (productOptional.isPresent()) {
+                Product product = productOptional.get();
+                ProductInfoDTO productInfoDTO = new ProductInfoDTO(
+                        product.getId(),
+                        product.getProductName(),
+                        product.getPrice(),
+                        product.getStockQuantity()
+                );
+                productsInfo.add(productInfoDTO);
             } else {
                 missingProductIds.add(productId);
             }
@@ -117,7 +143,7 @@ public class Product_Service {
             throw new ProductsNotFoundException(missingProductIds);
         }
 
-        return products;
+        return productsInfo;
     }
 
     //List All Products
