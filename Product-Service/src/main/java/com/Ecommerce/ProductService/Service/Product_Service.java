@@ -1,21 +1,24 @@
 package com.Ecommerce.ProductService.Service;
 
+import com.Ecommerce.ProductService.Dto.ProductWithImageDTO;
+import com.Ecommerce.ProductService.Entity.Image;
 import com.Ecommerce.ProductService.Entity.Product;
 import com.Ecommerce.ProductService.Entity.Review;
-import com.Ecommerce.ProductService.Exception.InsufficientStockException;
-import com.Ecommerce.ProductService.Exception.ProductAlreadyExistsException;
-import com.Ecommerce.ProductService.Exception.ProductNotFoundException;
-import com.Ecommerce.ProductService.Exception.ProductsNotFoundException;
+import com.Ecommerce.ProductService.Exception.*;
+import com.Ecommerce.ProductService.Repository.ImageRepository;
 import com.Ecommerce.ProductService.Repository.ProductRepository;
 import com.Ecommerce.ProductService.Repository.ReviewRepository;
 import com.Ecommerce.ProductService.Request.ProductRequest;
 import com.Ecommerce.ProductService.Request.ReviewRequest;
 import com.Ecommerce.ProductService.Request.StockQuantityRequest;
-import com.Ecommerce.ProductService.Response.MessageResponse;
+import com.Ecommerce.ProductService.Dto.MessageResponse;
+import com.Ecommerce.ProductService.Utils.ImageUtility;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -25,24 +28,50 @@ public class Product_Service {
 
     private final ProductRepository productRepository;
     private final ReviewRepository reviewRepository;
+    private final ImageRepository imageRepository;
     private final ModelMapper modelMapper;
     @Autowired
-    public Product_Service(ProductRepository productRepository, ReviewRepository reviewRepository, ModelMapper modelMapper) {
+    public Product_Service(ProductRepository productRepository, ReviewRepository reviewRepository, ImageRepository imageRepository, ModelMapper modelMapper) {
         this.productRepository = productRepository;
         this.reviewRepository = reviewRepository;
+        this.imageRepository = imageRepository;
         this.modelMapper = modelMapper;
     }
 
     //Creating product
-    public MessageResponse createProduct(ProductRequest productRequest) {
-        if (productRepository.existsByProductName(productRequest.getProductName())) {
-            throw new ProductAlreadyExistsException("Product with name " + productRequest.getProductName() + " already exists");
+    public MessageResponse createProduct(ProductRequest productRequest, MultipartFile file) throws IOException {
+        String productName = productRequest.getProductName();
+
+        if (productRepository.existsByProductName(productName)) {
+            throw new ProductAlreadyExistsException("Product with name " + productName + " already exists");
         }
-        Product product = modelMapper.map(productRequest, Product.class);
+
+        Product product = mapProductRequestToProduct(productRequest);
         productRepository.save(product);
+
+        Image image = createImageEntity(file, product);
+        imageRepository.save(image);
 
         return new MessageResponse("Product Added Successfully!");
     }
+
+    private Product mapProductRequestToProduct(ProductRequest productRequest) {
+        return modelMapper.map(productRequest, Product.class);
+    }
+
+    private Image createImageEntity(MultipartFile file, Product product) throws IOException {
+        String originalFilename = file.getOriginalFilename();
+        String contentType = file.getContentType();
+        byte[] compressedImage = ImageUtility.compressImage(file.getBytes());
+
+        return Image.builder()
+                .name(originalFilename)
+                .type(contentType)
+                .image(compressedImage)
+                .product(product)
+                .build();
+    }
+
 
     //Creating Review of products
     public MessageResponse createProductReview(Long productId, ReviewRequest reviewRequest){
@@ -56,9 +85,18 @@ public class Product_Service {
     }
 
     //Get Product by ID
-    public Product getProductById(Long productId){
-        Optional<Product> products = productRepository.findById(productId);
-        return products.orElseThrow(() -> new ProductNotFoundException("Product with ID " + productId + " not found."));
+    public ProductWithImageDTO getProductWithImageDetails(long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException("Product not found with ID: " + productId));
+
+        Image image = imageRepository.findByProductId(product.getId())
+                .orElseThrow(() -> new ImageNotFoundException("Image not found for Product with ID: " + productId));
+
+        ProductWithImageDTO productWithImageDTO = modelMapper.map(product, ProductWithImageDTO.class);
+        productWithImageDTO.setImageName(image.getName());
+        productWithImageDTO.setImageType(image.getType());
+
+        return productWithImageDTO;
     }
 
     //Get Products by IDs
@@ -83,12 +121,23 @@ public class Product_Service {
     }
 
     //List All Products
-    public List<Product> AllProducts(){
+    public List<ProductWithImageDTO> getAllProductsWithImageDetails() {
         List<Product> products = productRepository.findAll();
-        if (products.isEmpty()) {
-            throw new ProductNotFoundException("No Products found.");
+        List<ProductWithImageDTO> productWithImageDTOList = new ArrayList<>();
+
+        for (Product product : products) {
+            Image image = imageRepository.findByProductId(product.getId())
+                    .orElseThrow(() -> new ImageNotFoundException("Image not found for Product with ID: " + product.getId()));
+
+            ProductWithImageDTO productWithImageDTO = modelMapper.map(product, ProductWithImageDTO.class);
+            productWithImageDTO.setImageName(image.getName());
+            productWithImageDTO.setImageType(image.getType());
+
+
+            productWithImageDTOList.add(productWithImageDTO);
         }
-        return products;
+
+        return productWithImageDTOList;
     }
 
     //Get All Reviews by ID

@@ -1,27 +1,34 @@
 package com.Ecommerce.ProductService.Controller;
 
+import com.Ecommerce.ProductService.Dto.ProductWithImageDTO;
+import com.Ecommerce.ProductService.Entity.Image;
 import com.Ecommerce.ProductService.Entity.Product;
 import com.Ecommerce.ProductService.Entity.Review;
 import com.Ecommerce.ProductService.Exception.InsufficientStockException;
 import com.Ecommerce.ProductService.Exception.ProductAlreadyExistsException;
 import com.Ecommerce.ProductService.Exception.ProductNotFoundException;
 import com.Ecommerce.ProductService.Exception.ProductsNotFoundException;
+import com.Ecommerce.ProductService.Repository.ImageRepository;
 import com.Ecommerce.ProductService.Request.ProductRequest;
 import com.Ecommerce.ProductService.Request.ReviewRequest;
 import com.Ecommerce.ProductService.Request.StockQuantityRequest;
-import com.Ecommerce.ProductService.Response.MessageResponse;
-import com.Ecommerce.ProductService.Response.ProductResponse;
-import com.Ecommerce.ProductService.Response.ValidationErrorResponse;
+import com.Ecommerce.ProductService.Dto.MessageResponse;
+import com.Ecommerce.ProductService.Dto.ValidationErrorResponse;
 import com.Ecommerce.ProductService.Service.Product_Service;
 import com.Ecommerce.ProductService.Service.ValidationService;
+import com.Ecommerce.ProductService.Utils.ImageUtility;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("api/product")
@@ -29,22 +36,30 @@ public class ProductController {
 
     private final Product_Service productService;
     private final ValidationService validationService;
+    private final ImageRepository imageRepository;
 
-    public ProductController(Product_Service productService, ValidationService validationService) {
+    public ProductController(Product_Service productService, ValidationService validationService, ImageRepository imageRepository) {
         this.productService = productService;
         this.validationService = validationService;
+        this.imageRepository = imageRepository;
     }
 
     //Add product
     @PostMapping("/add-product")
-    public ResponseEntity<?> createProduct(@RequestBody @Valid ProductRequest productRequest, BindingResult bindingResult){
+    public ResponseEntity<?> createProduct(@RequestParam("image") MultipartFile file,
+                                           @RequestParam("productName") String productName,
+                                           @RequestParam("description") String description,
+                                           @RequestParam("category") String category,
+                                           @RequestParam("price") double price,
+                                           @RequestParam("stockQuantity") int stockQuantity){
         try{
             // Validate the ProductRequest using the validation service
-            if (bindingResult.hasErrors()) {
-                ValidationErrorResponse validationErrorResponse = validationService.buildValidationErrorResponse(bindingResult);
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validationErrorResponse);
-            }
-            return ResponseEntity.ok(productService.createProduct(productRequest));
+//            if (bindingResult.hasErrors()) {
+//                ValidationErrorResponse validationErrorResponse = validationService.buildValidationErrorResponse(bindingResult);
+//                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validationErrorResponse);
+//            }
+            ProductRequest productRequest = new ProductRequest(productName, description, category, price, stockQuantity);
+            return ResponseEntity.ok(productService.createProduct(productRequest, file));
         }catch (ProductAlreadyExistsException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }catch (Exception e) {
@@ -73,7 +88,7 @@ public class ProductController {
     @GetMapping("/getById/{productId}")
     public ResponseEntity<?> getProductById(@PathVariable Long productId){
         try{
-            return ResponseEntity.ok(productService.getProductById(productId));
+            return ResponseEntity.ok(productService.getProductWithImageDetails(productId));
         }catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }catch (Exception e) {
@@ -99,7 +114,7 @@ public class ProductController {
     @GetMapping("/allProducts")
     public ResponseEntity<?> allProducts(){
         try{
-            List<Product> allProducts = productService.AllProducts();
+            List<ProductWithImageDTO> allProducts = productService.getAllProductsWithImageDetails();
             return ResponseEntity.ok(allProducts);
         }catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
@@ -107,6 +122,24 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
+
+    @GetMapping(path = {"/get/image/{name}"})
+    public ResponseEntity<byte[]> getImage(@PathVariable("name") String name) throws IOException {
+        final Optional<Image> dbImage = imageRepository.findByName(name);
+
+        if (dbImage.isPresent()) {
+            Image image = dbImage.get();
+            return ResponseEntity
+                    .ok()
+                    .contentType(MediaType.valueOf(image.getType()))
+                    .body(ImageUtility.decompressImage(image.getImage()));
+        } else {
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+    }
+
 
     //Find All Review by Product ID
     @GetMapping("/reviews/{productId}")

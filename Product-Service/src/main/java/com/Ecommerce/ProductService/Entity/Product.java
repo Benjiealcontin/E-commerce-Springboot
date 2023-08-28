@@ -20,6 +20,7 @@ public class Product {
     private String category;
     private double price;
     private int stockQuantity;
-//    @Lob
-//    private byte[] image;
+    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL)
+    @PrimaryKeyJoinColumn
+    private Image image;
 }

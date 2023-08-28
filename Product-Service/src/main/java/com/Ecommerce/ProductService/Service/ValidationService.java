@@ -1,12 +1,9 @@
 package com.Ecommerce.ProductService.Service;
 
-import com.Ecommerce.ProductService.Response.ValidationErrorResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.Ecommerce.ProductService.Dto.ValidationErrorResponse;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.Errors;
-import org.springframework.validation.Validator;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
