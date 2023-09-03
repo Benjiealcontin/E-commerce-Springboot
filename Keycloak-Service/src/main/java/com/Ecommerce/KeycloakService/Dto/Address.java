@@ -1,4 +1,4 @@
-package com.Ecommerce.KeycloakService.Request;
+package com.Ecommerce.KeycloakService.Dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

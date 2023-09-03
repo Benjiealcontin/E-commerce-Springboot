@@ -1,5 +1,6 @@
-package com.Ecommerce.KeycloakService.Request;
+package com.Ecommerce.KeycloakService.Dto;
 
+import com.Ecommerce.KeycloakService.Dto.Address;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

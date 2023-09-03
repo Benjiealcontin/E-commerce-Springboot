@@ -11,8 +11,10 @@ import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Service.Order_Service;
 import com.Ecommerce.OrderService.Service.WebclientService;
 import com.Ecommerce.OrderService.Dto.MessageResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -29,7 +31,12 @@ public class OrderController {
 
     //Create Order
     @PostMapping("/add-order")
-    public ResponseEntity<?> addOrder(@RequestBody OrderRequest orderRequest, @RequestHeader("Authorization") String bearerToken) {
+    public ResponseEntity<?> addOrder(@RequestBody @Valid OrderRequest orderRequest,
+                                      @RequestHeader("Authorization") String bearerToken,
+                                      BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
+        }
         try{
             CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
             return ResponseEntity.ok(orderService.addOrder(orderRequest, customerInfo, bearerToken));
@@ -119,7 +126,8 @@ public class OrderController {
 
     //Update Order Details
     @PutMapping("/updateOrder/{orderId}")
-    public ResponseEntity<?> updateOrdersDetails(@PathVariable Long orderId,@RequestBody OrderDTO updatedOrderDTO) {
+    public ResponseEntity<?> updateOrdersDetails(@PathVariable Long orderId,
+                                                 @RequestBody OrderDTO updatedOrderDTO) {
         try{
             orderService.updateOrderDetails(orderId, updatedOrderDTO);
             return ResponseEntity.ok(new MessageResponse("Order Updated Successfully!"));

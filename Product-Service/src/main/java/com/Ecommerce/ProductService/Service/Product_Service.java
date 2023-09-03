@@ -164,7 +164,7 @@ public class Product_Service {
             ProductWithImageDTO productWithImageDTO = modelMapper.map(product, ProductWithImageDTO.class);
             productWithImageDTO.setImageName(image.getName());
             productWithImageDTO.setImageType(image.getType());
-
+            productWithImageDTO.setImageData(image.getImage());
 
             productWithImageDTOList.add(productWithImageDTO);
         }

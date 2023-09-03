@@ -8,7 +8,6 @@ import com.Ecommerce.ProductService.Request.ProductRequest;
 import com.Ecommerce.ProductService.Request.ReviewRequest;
 import com.Ecommerce.ProductService.Request.StockQuantityRequest;
 import com.Ecommerce.ProductService.Service.Product_Service;
-import com.Ecommerce.ProductService.Service.ValidationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -24,46 +23,46 @@ import java.util.List;
 public class ProductController {
 
     private final Product_Service productService;
-    private final ValidationService validationService;
 
-    public ProductController(Product_Service productService, ValidationService validationService) {
+    public ProductController(Product_Service productService) {
         this.productService = productService;
-        this.validationService = validationService;
     }
 
     //Add product
     @PostMapping("/add-product")
-    public ResponseEntity<?> createProduct(@Valid @RequestParam("image") MultipartFile file,
-                                           @RequestParam("productName") String productName,
-                                           @RequestParam("description") String description,
-                                           @RequestParam("category") String category,
-                                           @RequestParam("price") double price,
-                                           @RequestParam("stockQuantity") int stockQuantity,
+    public ResponseEntity<?> createProduct(@ModelAttribute @Valid ProductRequest productRequest,
+                                           @RequestParam("image") MultipartFile image,
                                            BindingResult bindingResult){
-        try{
-            // Validate the ProductRequest using the validation service
-            if (bindingResult.hasErrors()) {
-                ValidationErrorResponse validationErrorResponse = validationService.buildValidationErrorResponse(bindingResult);
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validationErrorResponse);
-            }
-            ProductRequest productRequest = new ProductRequest(productName, description, category, price, stockQuantity);
-            return ResponseEntity.ok(productService.createProduct(productRequest, file));
-        }catch (ProductAlreadyExistsException e) {
+
+        if (image.isEmpty()) {
+            return ResponseEntity.badRequest().body("Image file is required");
+        }
+
+        if (bindingResult.hasErrors()) {
+            // If there are validation errors, return a bad request response with error details
+            return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
+        }
+
+        try {
+            return ResponseEntity.ok(productService.createProduct(productRequest, image));
+        } catch (ProductAlreadyExistsException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        }catch (Exception e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
 
     //Add Review
     @PostMapping("/add-review/{productId}")
-    public ResponseEntity<?> createReview(@PathVariable Long productId, @RequestBody @Valid ReviewRequest reviewRequest, BindingResult bindingResult){
+    public ResponseEntity<?> createReview(@PathVariable Long productId,
+                                          @RequestBody @Valid ReviewRequest reviewRequest,
+                                          BindingResult bindingResult){
+        if (bindingResult.hasErrors()) {
+            // If there are validation errors, return a bad request response with error details
+            return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
+        }
+
         try{
-            // Validate the ProductRequest using the validation service
-            if (bindingResult.hasErrors()) {
-                ValidationErrorResponse validationErrorResponse = validationService.buildValidationErrorResponse(bindingResult);
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validationErrorResponse);
-            }
             return ResponseEntity.ok(productService.createProductReview(productId,reviewRequest));
         }catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
