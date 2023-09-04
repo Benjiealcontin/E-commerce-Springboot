@@ -11,6 +11,7 @@
         <option value="$PROJECT_DIR$/Order-Service/pom.xml" />
         <option value="$PROJECT_DIR$/Keycloak-Service/pom.xml" />
         <option value="$PROJECT_DIR$/Customer-Service/pom.xml" />
+        <option value="$PROJECT_DIR$/Authentication-Service/pom.xml" />
       </list>
     </option>
   </component>

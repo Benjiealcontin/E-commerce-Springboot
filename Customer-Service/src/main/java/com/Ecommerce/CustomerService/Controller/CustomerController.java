@@ -5,10 +5,7 @@ import com.Ecommerce.CustomerService.Request.AddCustomer;
 import com.Ecommerce.CustomerService.Service.Customer_Service;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/customer")
@@ -32,10 +29,13 @@ public class CustomerController {
         }
     }
 
-    @PostMapping("/asd")
-    public ResponseEntity<?> home(){
-        return ResponseEntity.ok("asd");
+    @PostMapping("/home")
+    public ResponseEntity<?> Home() {
+        try {
+            return ResponseEntity.ok("home");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
     }
-
 
 }

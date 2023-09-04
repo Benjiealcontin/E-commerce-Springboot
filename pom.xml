@@ -16,6 +16,7 @@
         <module>Order-Service</module>
         <module>Keycloak-Service</module>
         <module>Customer-Service</module>
+        <module>Authentication-Service</module>
     </modules>
 
     <properties>

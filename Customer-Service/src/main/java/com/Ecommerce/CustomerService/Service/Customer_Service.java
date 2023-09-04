@@ -1,15 +1,14 @@
 package com.Ecommerce.CustomerService.Service;
 
+
 import com.Ecommerce.CustomerService.Dto.MessageResponse;
-import com.Ecommerce.CustomerService.Dto.TokenResponse;
 import com.Ecommerce.CustomerService.Exception.AddCustomerConflictException;
 import com.Ecommerce.CustomerService.Request.AddCustomer;
-import com.Ecommerce.CustomerService.Request.Login;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
+
 
 @Service
 public class Customer_Service {
@@ -20,8 +19,7 @@ public class Customer_Service {
         this.webClientBuilder = webClientBuilder;
     }
 
-    //Login
-
+    private static final String KEYCLOAK_SERVICE_URL = "http://Keycloak-Service/api/keycloak";
 
     //Add Customer
     public MessageResponse Add_Customer(AddCustomer customer) {

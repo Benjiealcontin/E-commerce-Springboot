@@ -1,4 +1,4 @@
-package com.Ecommerce.CustomerService.Dto;
+package com.Ecommerce.AuthenticationService.Dto;
 
 import lombok.Data;
 

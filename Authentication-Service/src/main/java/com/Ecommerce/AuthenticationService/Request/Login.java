@@ -1,4 +1,4 @@
-package com.Ecommerce.CustomerService.Request;
+package com.Ecommerce.AuthenticationService.Request;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
