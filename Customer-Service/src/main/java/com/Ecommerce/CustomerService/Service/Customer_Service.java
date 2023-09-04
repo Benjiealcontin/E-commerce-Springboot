@@ -1,9 +1,12 @@
 package com.Ecommerce.CustomerService.Service;
 
 
+import com.Ecommerce.CustomerService.Dto.CustomerDetails;
 import com.Ecommerce.CustomerService.Dto.MessageResponse;
 import com.Ecommerce.CustomerService.Exception.AddCustomerConflictException;
+import com.Ecommerce.CustomerService.Exception.CustomerNotFoundException;
 import com.Ecommerce.CustomerService.Request.AddCustomer;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -24,20 +27,34 @@ public class Customer_Service {
     //Add Customer
     public MessageResponse Add_Customer(AddCustomer customer) {
         try{
-            WebClient webClient = webClientBuilder.baseUrl("http://Keycloak-Service").build();
-
-            webClient.post()
-                    .uri("/api/keycloak/add-customer")
+            webClientBuilder.build()
+                    .post()
+                    .uri(KEYCLOAK_SERVICE_URL + "/api/keycloak/add-customer")
                     .body(Mono.just(customer), AddCustomer.class)
                     .retrieve()
                     .toBodilessEntity()
                     .block();
 
             return new MessageResponse("Customer Added Successfully.");
-
         }catch (WebClientResponseException.Conflict e) {
             String responseBody = e.getResponseBodyAsString();
             throw new AddCustomerConflictException(responseBody);
         }
+    }
+
+    //Get the Customer Details by ID
+    public CustomerDetails CustomerDetails(String customerId, String bearerToken){
+        try{
+            return webClientBuilder.build()
+                    .get()
+                    .uri(KEYCLOAK_SERVICE_URL + "/getCustomerById/{id}", customerId)
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                    .retrieve()
+                    .bodyToMono(CustomerDetails.class)
+                    .block();
+        }catch (WebClientResponseException.NotFound | WebClientResponseException.BadRequest e) {
+            String responseBody = e.getResponseBodyAsString();
+            throw new CustomerNotFoundException(responseBody);
+         }
     }
 }

@@ -27,6 +27,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(HttpMethod.GET,"/actuator/**").permitAll();
                     auth.requestMatchers(HttpMethod.POST,"/api/customer/add-customer").permitAll();
+                    auth.requestMatchers(HttpMethod.GET,"/api/customer/customerDetails/*").hasRole(ADMIN);
                     auth.anyRequest().authenticated();
                 })
                 .oauth2ResourceServer(oauth2 -> oauth2

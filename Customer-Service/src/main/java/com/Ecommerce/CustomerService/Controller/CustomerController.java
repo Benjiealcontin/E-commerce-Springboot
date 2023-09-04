@@ -1,6 +1,7 @@
 package com.Ecommerce.CustomerService.Controller;
 
 import com.Ecommerce.CustomerService.Exception.AddCustomerConflictException;
+import com.Ecommerce.CustomerService.Exception.CustomerNotFoundException;
 import com.Ecommerce.CustomerService.Request.AddCustomer;
 import com.Ecommerce.CustomerService.Service.Customer_Service;
 import org.springframework.http.HttpStatus;
@@ -29,13 +30,15 @@ public class CustomerController {
         }
     }
 
-    @PostMapping("/home")
-    public ResponseEntity<?> Home() {
+    //Get Customer Details by ID
+    @GetMapping("/customerDetails/{customerId}")
+    public ResponseEntity<?> CustomerDetails(@PathVariable String customerId, @RequestHeader("Authorization") String bearerToken) {
         try {
-            return ResponseEntity.ok("home");
+            return ResponseEntity.ok(customerService.CustomerDetails(customerId,bearerToken));
+        }catch (CustomerNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
-
 }

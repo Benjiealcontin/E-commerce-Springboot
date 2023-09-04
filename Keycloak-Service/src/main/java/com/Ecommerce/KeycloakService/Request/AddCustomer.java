@@ -18,5 +18,5 @@ public class AddCustomer {
     private String lastName;
     private Map<String, Object> attributes;
     private List<String> groups;
-    private List<CredentialRequest> credentials;
+    private List<Credentials> credentials;
 }
