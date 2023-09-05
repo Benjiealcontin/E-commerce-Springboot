@@ -5,6 +5,7 @@ import com.Ecommerce.CustomerService.Dto.CustomerDetails;
 import com.Ecommerce.CustomerService.Dto.MessageResponse;
 import com.Ecommerce.CustomerService.Exception.AddCustomerConflictException;
 import com.Ecommerce.CustomerService.Exception.CustomerNotFoundException;
+import com.Ecommerce.CustomerService.Exception.ForbiddenException;
 import com.Ecommerce.CustomerService.Request.AddCustomer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -26,25 +27,25 @@ public class Customer_Service {
 
     //Add Customer
     public MessageResponse Add_Customer(AddCustomer customer) {
-        try{
+        try {
             webClientBuilder.build()
                     .post()
-                    .uri(KEYCLOAK_SERVICE_URL + "/api/keycloak/add-customer")
+                    .uri(KEYCLOAK_SERVICE_URL + "/add-customer")
                     .body(Mono.just(customer), AddCustomer.class)
                     .retrieve()
                     .toBodilessEntity()
                     .block();
 
             return new MessageResponse("Customer Added Successfully.");
-        }catch (WebClientResponseException.Conflict e) {
+        } catch (WebClientResponseException.Conflict e) {
             String responseBody = e.getResponseBodyAsString();
             throw new AddCustomerConflictException(responseBody);
         }
     }
 
     //Get the Customer Details by ID
-    public CustomerDetails CustomerDetails(String customerId, String bearerToken){
-        try{
+    public CustomerDetails CustomerDetails(String customerId, String bearerToken) {
+        try {
             return webClientBuilder.build()
                     .get()
                     .uri(KEYCLOAK_SERVICE_URL + "/getCustomerById/{id}", customerId)
@@ -52,9 +53,28 @@ public class Customer_Service {
                     .retrieve()
                     .bodyToMono(CustomerDetails.class)
                     .block();
-        }catch (WebClientResponseException.NotFound | WebClientResponseException.BadRequest e) {
+        } catch (WebClientResponseException.NotFound | WebClientResponseException.BadRequest e) {
             String responseBody = e.getResponseBodyAsString();
             throw new CustomerNotFoundException(responseBody);
-         }
+        }
+    }
+
+    //Delete Customer
+    public void deleteCustomer(String customerId, String bearerToken) {
+        try {
+            webClientBuilder.build()
+                    .delete()
+                    .uri(KEYCLOAK_SERVICE_URL + "/delete/{customerId}", customerId)
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
+        } catch (WebClientResponseException.Forbidden e) {
+            String responseBody = e.getResponseBodyAsString();
+            throw new ForbiddenException(responseBody);
+        } catch (WebClientResponseException.NotFound e) {
+            String responseBody = e.getResponseBodyAsString();
+            throw new CustomerNotFoundException(responseBody);
+        }
     }
 }

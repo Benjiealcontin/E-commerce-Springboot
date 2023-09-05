@@ -2,6 +2,7 @@ package com.Ecommerce.KeycloakService.Service;
 
 import com.Ecommerce.KeycloakService.Dto.*;
 import com.Ecommerce.KeycloakService.Exception.AddCustomerConflictException;
+import com.Ecommerce.KeycloakService.Exception.ForbiddenException;
 import com.Ecommerce.KeycloakService.Exception.CustomerNotFoundException;
 import com.Ecommerce.KeycloakService.Request.AddCustomer;
 import com.Ecommerce.KeycloakService.Request.CustomerForGetById;
@@ -21,15 +22,72 @@ import java.util.Objects;
 @Service
 public class Keycloak_Service {
     private final WebClient.Builder webClientBuilder;
+
     public Keycloak_Service(WebClient.Builder webClientBuilder) {
         this.webClientBuilder = webClientBuilder;
+    }
+
+    private static final String KEYCLOAK_URL = "http://localhost:8081/realms/E-commerce";
+
+    //Add Customer
+    public void createCustomer(AddCustomer customer) {
+        try {
+            String accessToken = obtainAccessToken();
+            sendCreateCustomerRequest(customer, accessToken);
+        } catch (WebClientResponseException e) {
+            handleWebClientResponseException(e);
+        }
+    }
+
+    //To obtain access token
+    private String obtainAccessToken() {
+        String clientId = "Consumer-clients";
+        String clientSecret = "p8Q6W5YMegeVcAVToJfvi1BCEIRPT7x0";
+        String grantType = "client_credentials";
+
+        TokenDetails token = webClientBuilder.build()
+                .post()
+                .uri(KEYCLOAK_URL + "/protocol/openid-connect/token")
+                .body(BodyInserters
+                        .fromFormData("client_id", clientId)
+                        .with("client_secret", clientSecret)
+                        .with("grant_type", grantType))
+                .retrieve()
+                .bodyToMono(TokenDetails.class)
+                .block();
+
+        return Objects.requireNonNull(token).getAccess_token();
+    }
+
+    //To send the data to Keycloak
+    private void sendCreateCustomerRequest(AddCustomer customer, String bearerToken) {
+        Mono<Void> response = webClientBuilder.build()
+                .post()
+                .uri("http://localhost:8081/admin/realms/E-commerce/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
+                .body(BodyInserters.fromValue(customer))
+                .retrieve()
+                .bodyToMono(Void.class);
+
+        response.block(); // This blocks until the request completes
+    }
+
+    //Exception Handler
+    private void handleWebClientResponseException(WebClientResponseException e) {
+        if (e.getStatusCode() == HttpStatus.CONFLICT) {
+            String responseBody = "A user with the same username or email already exists.";
+            throw new AddCustomerConflictException(responseBody);
+        } else {
+            throw e;
+        }
     }
 
     //User Info
     public Customer decodeUserToken(String bearerToken) {
         UserTokenData userTokenData = webClientBuilder.build()
                 .get()
-                .uri("http://localhost:8081/realms/E-commerce/protocol/openid-connect/userinfo")
+                .uri(KEYCLOAK_URL + "/protocol/openid-connect/userinfo")
                 .header(HttpHeaders.AUTHORIZATION, bearerToken)
                 .retrieve()
                 .bodyToMono(UserTokenData.class)
@@ -58,7 +116,7 @@ public class Keycloak_Service {
         try {
             CustomerForGetById customerInfo = webClientBuilder.build()
                     .get()
-                    .uri("http://localhost:8081/admin/realms/E-commerce/users/{id}", customerId)
+                    .uri(KEYCLOAK_URL + "/E-commerce/users/{id}", customerId)
                     .header(HttpHeaders.AUTHORIZATION, bearerToken)
                     .retrieve()
                     .bodyToMono(CustomerForGetById.class)
@@ -91,63 +149,29 @@ public class Keycloak_Service {
 
             return customer;
         } catch (WebClientResponseException.NotFound e) {
-            String responseBody = e.getResponseBodyAsString();
+            String responseBody = "User not found";
             throw new CustomerNotFoundException(responseBody);
 
         }
     }
 
-    //Add Customer
-    public void createCustomer(AddCustomer customer) {
+    //Delete Customer
+    public void deleteCustomer(String customerId, String bearerToken) {
         try {
-            String accessToken = obtainAccessToken();
-            sendCreateCustomerRequest(customer, accessToken);
-        } catch (WebClientResponseException e) {
-            handleWebClientResponseException(e);
-        }
-    }
-
-    //To obtain access token
-    private String obtainAccessToken() {
-        String clientId = "Consumer-clients";
-        String clientSecret = "p8Q6W5YMegeVcAVToJfvi1BCEIRPT7x0";
-        String grantType = "client_credentials";
-
-        TokenDetails token = webClientBuilder.build()
-                .post()
-                .uri("http://localhost:8081/realms/E-commerce/protocol/openid-connect/token")
-                .body(BodyInserters
-                        .fromFormData("client_id", clientId)
-                        .with("client_secret", clientSecret)
-                        .with("grant_type", grantType))
-                .retrieve()
-                .bodyToMono(TokenDetails.class)
-                .block();
-
-        return Objects.requireNonNull(token).getAccess_token();
-    }
-
-    //To send the data to Keycloak
-    private void sendCreateCustomerRequest(AddCustomer customer, String bearerToken) {
-        Mono<Void> response = webClientBuilder.build()
-                .post()
-                .uri("http://localhost:8081/admin/realms/E-commerce/users")
-                .contentType(MediaType.APPLICATION_JSON)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
-                .body(BodyInserters.fromValue(customer))
-                .retrieve()
-                .bodyToMono(Void.class);
-
-        response.block(); // This blocks until the request completes
-    }
-
-    //Exception Handler
-    private void handleWebClientResponseException(WebClientResponseException e) {
-        if (e.getStatusCode() == HttpStatus.CONFLICT) {
-            String responseBody = e.getResponseBodyAsString();
-            throw new AddCustomerConflictException(responseBody);
-        } else {
-            throw e;
+            webClientBuilder.build()
+                    .delete()
+                    .uri("http://localhost:8081/admin/realms/E-commerce/users/{id}", customerId)
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                    .retrieve()
+                    .bodyToMono(Void.class)
+                    .block();
+        } catch (WebClientResponseException.Forbidden e) {
+            String responseBody = "You are not allowed to delete customer.";
+            throw new ForbiddenException(responseBody);
+        } catch (WebClientResponseException.NotFound e) {
+            throw new CustomerNotFoundException("Customer with ID " + customerId + " not found.");
         }
     }
 }
+
+
