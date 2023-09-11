@@ -1,8 +1,7 @@
-package com.Ecommerce.OrderService.Enum;
+package com.Ecommerce.CustomerService.Enum;
 
 public enum OrderStatus {
     PENDING,
-    CASH_ON_DELIVERY,
     PAID,
     SHIPPED,
     DELIVERED,

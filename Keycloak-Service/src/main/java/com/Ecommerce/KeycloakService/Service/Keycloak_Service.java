@@ -1,10 +1,10 @@
 package com.Ecommerce.KeycloakService.Service;
 
-import com.Ecommerce.KeycloakService.Dto.*;
-import com.Ecommerce.KeycloakService.Exception.AddCustomerConflictException;
-import com.Ecommerce.KeycloakService.Exception.ForbiddenException;
-import com.Ecommerce.KeycloakService.Exception.CustomerNotFoundException;
-import com.Ecommerce.KeycloakService.Request.AddCustomer;
+import com.Ecommerce.KeycloakService.Dto.Address;
+import com.Ecommerce.KeycloakService.Dto.TokenDetails;
+import com.Ecommerce.KeycloakService.Dto.UserTokenData;
+import com.Ecommerce.KeycloakService.Exception.*;
+import com.Ecommerce.KeycloakService.Request.Customer;
 import com.Ecommerce.KeycloakService.Request.CustomerForGetById;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -13,8 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
-
 
 import java.util.Map;
 import java.util.Objects;
@@ -30,7 +28,7 @@ public class Keycloak_Service {
     private static final String KEYCLOAK_URL = "http://localhost:8081/realms/E-commerce";
 
     //Add Customer
-    public void createCustomer(AddCustomer customer) {
+    public void createCustomer(Customer customer) {
         try {
             String accessToken = obtainAccessToken();
             sendCreateCustomerRequest(customer, accessToken);
@@ -60,17 +58,16 @@ public class Keycloak_Service {
     }
 
     //To send the data to Keycloak
-    private void sendCreateCustomerRequest(AddCustomer customer, String bearerToken) {
-        Mono<Void> response = webClientBuilder.build()
+    private void sendCreateCustomerRequest(Customer customer, String bearerToken) {
+        webClientBuilder.build()
                 .post()
                 .uri("http://localhost:8081/admin/realms/E-commerce/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
                 .body(BodyInserters.fromValue(customer))
                 .retrieve()
-                .bodyToMono(Void.class);
-
-        response.block(); // This blocks until the request completes
+                .bodyToMono(Void.class)
+                .block(); // This blocks until the request completes
     }
 
     //Exception Handler
@@ -84,7 +81,7 @@ public class Keycloak_Service {
     }
 
     //User Info
-    public Customer decodeUserToken(String bearerToken) {
+    public com.Ecommerce.KeycloakService.Dto.Customer decodeUserToken(String bearerToken) {
         UserTokenData userTokenData = webClientBuilder.build()
                 .get()
                 .uri(KEYCLOAK_URL + "/protocol/openid-connect/userinfo")
@@ -96,7 +93,7 @@ public class Keycloak_Service {
         assert userTokenData != null;
 
         Address address = userTokenData.getAddress();
-        return new Customer(
+        return new com.Ecommerce.KeycloakService.Dto.Customer(
                 userTokenData.getName(),
                 userTokenData.getGiven_name(),
                 userTokenData.getFamily_name(),
@@ -112,7 +109,7 @@ public class Keycloak_Service {
     }
 
     //Get Customer Info by ID
-    public Customer getCustomerInfoById(String customerId, String bearerToken) {
+    public com.Ecommerce.KeycloakService.Dto.Customer getCustomerInfoById(String customerId, String bearerToken) {
         try {
             CustomerForGetById customerInfo = webClientBuilder.build()
                     .get()
@@ -124,7 +121,7 @@ public class Keycloak_Service {
 
             assert customerInfo != null;
 
-            Customer customer = new Customer();
+            com.Ecommerce.KeycloakService.Dto.Customer customer = new com.Ecommerce.KeycloakService.Dto.Customer();
             customer.setFullName(customerInfo.getFirstName() + " " + customerInfo.getLastName());
             customer.setFirstName(customerInfo.getFirstName());
             customer.setLastName(customerInfo.getLastName());
@@ -155,6 +152,7 @@ public class Keycloak_Service {
         }
     }
 
+
     //Delete Customer
     public void deleteCustomer(String customerId, String bearerToken) {
         try {
@@ -172,6 +170,28 @@ public class Keycloak_Service {
             throw new CustomerNotFoundException("Customer with ID " + customerId + " not found.");
         }
     }
+
+    //Update Customer Details
+    public void updateCustomerDetails(String customerId, Customer updateCustomer, String bearerToken) {
+        try {
+            webClientBuilder.build()
+                    .put()
+                    .uri("http://localhost:8081/admin/realms/E-commerce/users/{id}", customerId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                    .body(BodyInserters.fromValue(updateCustomer))
+                    .retrieve()
+                    .bodyToMono(Void.class)
+                    .block();
+
+        } catch (WebClientResponseException.BadRequest e) {
+            String responseBody = e.getResponseBodyAsString();
+            throw new BadRequestException(responseBody);
+        } catch (WebClientResponseException.NotFound e) {
+            throw new UpdateCustomerException("Customer with ID " + customerId + " not found.");
+        }
+    }
+
 }
 
 

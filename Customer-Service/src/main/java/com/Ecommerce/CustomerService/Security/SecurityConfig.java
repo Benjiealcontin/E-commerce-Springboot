@@ -28,6 +28,8 @@ public class SecurityConfig {
                     auth.requestMatchers(HttpMethod.GET,"/actuator/**").permitAll();
                     auth.requestMatchers(HttpMethod.POST,"/api/customer/add-customer").permitAll();
                     auth.requestMatchers(HttpMethod.GET,"/api/customer/customerDetails/*").hasRole(ADMIN);
+                    auth.requestMatchers(HttpMethod.DELETE,"/api/customer/delete-customer/*").hasRole(ADMIN);
+                    auth.requestMatchers(HttpMethod.PUT,"/api/customer/update-customer/*").hasAnyRole(ADMIN,CONSUMER);
                     auth.anyRequest().authenticated();
                 })
                 .oauth2ResourceServer(oauth2 -> oauth2

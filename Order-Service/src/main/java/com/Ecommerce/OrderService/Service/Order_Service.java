@@ -4,16 +4,9 @@ package com.Ecommerce.OrderService.Service;
 import com.Ecommerce.OrderService.Dto.*;
 import com.Ecommerce.OrderService.Entity.*;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
-import com.Ecommerce.OrderService.Exception.DeliveredOrdersNotFoundException;
-import com.Ecommerce.OrderService.Exception.InsufficientProductQuantityException;
-import com.Ecommerce.OrderService.Exception.OrderNotFoundException;
-import com.Ecommerce.OrderService.Exception.ProductsNotFoundException;
+import com.Ecommerce.OrderService.Exception.*;
 import com.Ecommerce.OrderService.Repository.*;
-
-import com.Ecommerce.OrderService.Request.CustomerInfo;
-import com.Ecommerce.OrderService.Request.OrderRequest;
-import com.Ecommerce.OrderService.Request.ProductRequest;
-import com.Ecommerce.OrderService.Request.StockQuantityRequest;
+import com.Ecommerce.OrderService.Request.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -24,6 +17,8 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,15 +28,17 @@ public class Order_Service {
     private final ShippingAddressRepository shippingAddressRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
+    private final CancelRepository cancelRepository;
     private final WebClient.Builder webClientBuilder;
     private final ModelMapper modelMapper;
 
-    public Order_Service(OrderRepository orderRepository, CustomerRepository customerRepository, ShippingAddressRepository shippingAddressRepository, OrderItemRepository orderItemRepository, ProductRepository productRepository, WebClient.Builder webClientBuilder, ModelMapper modelMapper) {
+    public Order_Service(OrderRepository orderRepository, CustomerRepository customerRepository, ShippingAddressRepository shippingAddressRepository, OrderItemRepository orderItemRepository, ProductRepository productRepository, CancelRepository cancelRepository, WebClient.Builder webClientBuilder, ModelMapper modelMapper) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.shippingAddressRepository = shippingAddressRepository;
         this.orderItemRepository = orderItemRepository;
         this.productRepository = productRepository;
+        this.cancelRepository = cancelRepository;
         this.webClientBuilder = webClientBuilder;
         this.modelMapper = modelMapper;
     }
@@ -67,6 +64,9 @@ public class Order_Service {
             // If products are not found, throw a custom exception with the response body
             String responseBody = ex.getResponseBodyAsString();
             throw new ProductsNotFoundException(responseBody);
+        } catch (WebClientResponseException.ServiceUnavailable ex) {
+            String responseBody = "Product service is currently unavailable. Please try again later.";
+            throw new ServiceUnavailableException(responseBody);
         }
     }
 
@@ -89,7 +89,8 @@ public class Order_Service {
                 .header(HttpHeaders.AUTHORIZATION, bearerToken)
                 .retrieve()
                 // Convert the response body to a list of ProductRequest objects
-                .bodyToMono(new ParameterizedTypeReference<List<ProductRequest>>() {})
+                .bodyToMono(new ParameterizedTypeReference<List<ProductRequest>>() {
+                })
                 // Block and wait for the response
                 .block();
     }
@@ -139,13 +140,13 @@ public class Order_Service {
     }
 
     // Creates and saves an order item associated with an order
-        private OrderItem createAndSaveOrderItem(Order order, int totalQuantity, double itemTotalPrice) {
-            OrderItem orderItem = new OrderItem();
-            orderItem.setQuantity(totalQuantity);
-            orderItem.setTotalPrice(itemTotalPrice);
-            orderItem.setOrder(order);
-            return orderItemRepository.save(orderItem);
-        }
+    private OrderItem createAndSaveOrderItem(Order order, int totalQuantity, double itemTotalPrice) {
+        OrderItem orderItem = new OrderItem();
+        orderItem.setQuantity(totalQuantity);
+        orderItem.setTotalPrice(itemTotalPrice);
+        orderItem.setOrder(order);
+        return orderItemRepository.save(orderItem);
+    }
 
     // Associates an order item with a product entity and saves it
     private void associateOrderItemWithProduct(OrderItem orderItem, ProductRequest product) {
@@ -206,6 +207,37 @@ public class Order_Service {
         shippingAddress.setPostalCode(customerRequest.getPostalCode());
         shippingAddress.setLocality(customerRequest.getLocality());
         return shippingAddress;
+    }
+
+    //Cancel Order
+    public void cancelOrder(Long orderId, String customerId, CancelRequest cancelReason) {
+        Order order = findOrderById(orderId);
+
+        validateCustomerOwnership(order, customerId);
+
+        // Update the order status
+        order.setOrderStatus(OrderStatus.CANCELLED);
+
+        // Create a CancelOrder record
+        CancelOrder cancelOrder = new CancelOrder();
+        cancelOrder.setOrderId(order.getId());
+        cancelOrder.setCancelReason(cancelReason.getCancelReason());
+        cancelOrder.setCustomerId(order.getCustomers().getConsumerId());
+        cancelOrder.setOrderDate(order.getOrderDate());
+
+        // Save the cancellation record
+        cancelRepository.save(cancelOrder);
+    }
+
+    private Order findOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order with ID " + orderId + " not found"));
+    }
+
+    private void validateCustomerOwnership(Order order, String customerId) {
+        if (!Objects.equals(customerId, order.getCustomers().getConsumerId())) {
+            throw new CustomBadRequestException("Customer ID didn't match the Order Customer ID");
+        }
     }
 
     //Find Order by ID
@@ -352,7 +384,7 @@ public class Order_Service {
     }
 
     //Delete Order
-    public void deleteOrder(Long orderId){
+    public void deleteOrder(Long orderId) {
         if (!orderRepository.existsById(orderId)) {
             throw new OrderNotFoundException("Order with ID " + orderId + " not found.");
         }
@@ -421,7 +453,22 @@ public class Order_Service {
 
     }
 
+    //Update Order Status
+    public void updateOrderStatus(Long orderId, OrderStatus newStatus) {
+        // Find the order by its ID
+        Optional<Order> optionalOrder = orderRepository.findById(orderId);
 
+        if (optionalOrder.isPresent()) {
+            Order order = optionalOrder.get();
 
+            // Update the order status
+            order.setOrderStatus(newStatus);
 
+            // Save the updated order
+            orderRepository.save(order);
+        } else {
+            // Handle the case where the order with the given ID is not found
+            throw new OrderNotFoundException("Order with ID " + orderId + " not found");
+        }
+    }
 }

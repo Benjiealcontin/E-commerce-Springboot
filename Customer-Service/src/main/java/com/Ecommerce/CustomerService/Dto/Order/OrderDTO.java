@@ -1,11 +1,11 @@
-package com.Ecommerce.OrderService.Dto;
+package com.Ecommerce.CustomerService.Dto.Order;
 
-import com.Ecommerce.OrderService.Enum.OrderStatus;
+
+import com.Ecommerce.CustomerService.Enum.OrderStatus;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Data
 public class OrderDTO {

@@ -1,9 +1,7 @@
 package com.Ecommerce.KeycloakService.Controller;
 
-import com.Ecommerce.KeycloakService.Exception.AddCustomerConflictException;
-import com.Ecommerce.KeycloakService.Exception.ForbiddenException;
-import com.Ecommerce.KeycloakService.Exception.CustomerNotFoundException;
-import com.Ecommerce.KeycloakService.Request.AddCustomer;
+import com.Ecommerce.KeycloakService.Exception.*;
+import com.Ecommerce.KeycloakService.Request.Customer;
 import com.Ecommerce.KeycloakService.Service.Keycloak_Service;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +19,7 @@ public class KeycloakController {
 
     //Add Customer
     @PostMapping("/add-customer")
-    public ResponseEntity<String> createCustomer(@RequestBody AddCustomer customer) {
+    public ResponseEntity<String> createCustomer(@RequestBody Customer customer) {
         try {
             keycloakService.createCustomer(customer);
             return ResponseEntity.ok("Customer created successfully");
@@ -64,6 +62,21 @@ public class KeycloakController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (CustomerNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Update Customer Details
+    @PutMapping("/update/{customerId}")
+    public ResponseEntity<?> UpdateCustomer(@PathVariable String customerId, @RequestBody Customer customer, @RequestHeader("Authorization") String bearerToken) {
+        try {
+            keycloakService.updateCustomerDetails(customerId, customer, bearerToken);
+            return ResponseEntity.ok("Customer Updated Successfully.");
+        } catch (UpdateCustomerException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (BadRequestException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
