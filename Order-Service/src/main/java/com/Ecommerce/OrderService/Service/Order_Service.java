@@ -6,7 +6,10 @@ import com.Ecommerce.OrderService.Entity.*;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
 import com.Ecommerce.OrderService.Exception.*;
 import com.Ecommerce.OrderService.Repository.*;
-import com.Ecommerce.OrderService.Request.*;
+import com.Ecommerce.OrderService.Request.CustomerInfo;
+import com.Ecommerce.OrderService.Request.OrderRequest;
+import com.Ecommerce.OrderService.Request.ProductRequest;
+import com.Ecommerce.OrderService.Request.StockQuantityRequest;
 import org.modelmapper.ModelMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -28,17 +31,15 @@ public class Order_Service {
     private final ShippingAddressRepository shippingAddressRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
-    private final CancelRepository cancelRepository;
     private final WebClient.Builder webClientBuilder;
     private final ModelMapper modelMapper;
 
-    public Order_Service(OrderRepository orderRepository, CustomerRepository customerRepository, ShippingAddressRepository shippingAddressRepository, OrderItemRepository orderItemRepository, ProductRepository productRepository, CancelRepository cancelRepository, WebClient.Builder webClientBuilder, ModelMapper modelMapper) {
+    public Order_Service(OrderRepository orderRepository, CustomerRepository customerRepository, ShippingAddressRepository shippingAddressRepository, OrderItemRepository orderItemRepository, ProductRepository productRepository, WebClient.Builder webClientBuilder, ModelMapper modelMapper) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.shippingAddressRepository = shippingAddressRepository;
         this.orderItemRepository = orderItemRepository;
         this.productRepository = productRepository;
-        this.cancelRepository = cancelRepository;
         this.webClientBuilder = webClientBuilder;
         this.modelMapper = modelMapper;
     }
@@ -99,7 +100,9 @@ public class Order_Service {
         double totalAmount = 0.0;
 
         // Create and save a new order
-        Order savedOrder = createAndSaveOrder();
+        Order savedOrder = new Order();
+        savedOrder.setOrderStatus(OrderStatus.PENDING);
+        orderRepository.save(savedOrder); // Save the order first
 
         // Iterate through each product to process order items
         // Count how many quantity customer Order
@@ -121,6 +124,7 @@ public class Order_Service {
         }
 
         savedOrder.setTotalAmount(totalAmount);
+        orderRepository.save(savedOrder); // Update the order with totalAmount
         createAndSaveCustomerAndShipping(savedOrder, customerInfo);
     }
 
@@ -130,13 +134,6 @@ public class Order_Service {
                 .filter(item -> item.getProductId().equals(product.getId()))
                 .mapToInt(OrderRequest.OrderItemRequest::getQuantity)
                 .sum();
-    }
-
-    // Creates and saves a new order with a PENDING status
-    private Order createAndSaveOrder() {
-        Order order = new Order();
-        order.setOrderStatus(OrderStatus.PENDING);
-        return orderRepository.save(order);
     }
 
     // Creates and saves an order item associated with an order
@@ -210,7 +207,7 @@ public class Order_Service {
     }
 
     //Cancel Order
-    public void cancelOrder(Long orderId, String customerId, CancelRequest cancelReason) {
+    public void cancelOrder(Long orderId, String customerId) {
         Order order = findOrderById(orderId);
 
         validateCustomerOwnership(order, customerId);
@@ -218,15 +215,7 @@ public class Order_Service {
         // Update the order status
         order.setOrderStatus(OrderStatus.CANCELLED);
 
-        // Create a CancelOrder record
-        CancelOrder cancelOrder = new CancelOrder();
-        cancelOrder.setOrderId(order.getId());
-        cancelOrder.setCancelReason(cancelReason.getCancelReason());
-        cancelOrder.setCustomerId(order.getCustomers().getConsumerId());
-        cancelOrder.setOrderDate(order.getOrderDate());
-
-        // Save the cancellation record
-        cancelRepository.save(cancelOrder);
+        orderRepository.save(order);
     }
 
     private Order findOrderById(Long orderId) {
@@ -236,7 +225,7 @@ public class Order_Service {
 
     private void validateCustomerOwnership(Order order, String customerId) {
         if (!Objects.equals(customerId, order.getCustomers().getConsumerId())) {
-            throw new CustomBadRequestException("Customer ID didn't match the Order Customer ID");
+            throw new CustomerOwnershipValidationException("Customer ID didn't match the Order Customer ID");
         }
     }
 
@@ -304,6 +293,19 @@ public class Order_Service {
         if (orders.isEmpty()) {
             throw new OrderNotFoundException("No orders found with status: " + orderStatus);
         }
+        return orders.stream()
+                .map(this::mapOrderToOrderDTO)
+                .collect(Collectors.toList());
+    }
+
+    //Find All Orders of Costumer By OrderStatus
+    public List<OrderDTO> getOrdersOfCustomerByOrderStatus(String costumerId, OrderStatus orderStatus) {
+        List<Order> orders = orderRepository.findByOrderStatusAndCustomers_ConsumerId(orderStatus, costumerId);
+
+        if (orders.isEmpty()) {
+            throw new OrderNotFoundException("No orders found with status: " + orderStatus);
+        }
+
         return orders.stream()
                 .map(this::mapOrderToOrderDTO)
                 .collect(Collectors.toList());

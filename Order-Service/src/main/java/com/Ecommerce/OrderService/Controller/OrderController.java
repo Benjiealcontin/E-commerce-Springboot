@@ -4,8 +4,8 @@ import com.Ecommerce.OrderService.Dto.MessageResponse;
 import com.Ecommerce.OrderService.Dto.OrderDTO;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
 import com.Ecommerce.OrderService.Exception.*;
-import com.Ecommerce.OrderService.Request.CancelRequest;
 import com.Ecommerce.OrderService.Request.CustomerInfo;
+import com.Ecommerce.OrderService.Request.OrderPaymentDataRequest;
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Service.Order_Service;
 import com.Ecommerce.OrderService.Service.WebclientService;
@@ -53,7 +53,6 @@ public class OrderController {
     //Cancel Order
     @PostMapping("/{orderId}/cancel")
     public ResponseEntity<?> cancelOrder(@PathVariable Long orderId,
-                                         @RequestBody CancelRequest cancelReason,
                                          @RequestHeader("Authorization") String bearerToken,
                                          BindingResult bindingResult) {
         try {
@@ -62,11 +61,11 @@ public class OrderController {
             }
 
             CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
-            orderService.cancelOrder(orderId, customerInfo.getConsumerId(), cancelReason);
+            orderService.cancelOrder(orderId, customerInfo.getConsumerId());
             return ResponseEntity.ok("Order Cancel Successfully.");
-        }catch (OrderNotFoundException e) {
+        } catch (OrderNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }  catch (CustomBadRequestException e) {
+        } catch (CustomBadRequestException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
@@ -105,6 +104,22 @@ public class OrderController {
     public ResponseEntity<?> getOrderByConsumerId(@PathVariable OrderStatus orderStatus) {
         try {
             return ResponseEntity.ok(orderService.getOrdersByOrderStatus(orderStatus));
+        } catch (OrderNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Find All Orders of Costumer By OrderStatus
+    @GetMapping("/customer/status/{orderStatus}")
+    public ResponseEntity<?> getOrderOfCustomerByConsumerId(@PathVariable OrderStatus orderStatus,
+                                                            @RequestHeader("Authorization") String bearerToken) {
+        try {
+            CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
+            return ResponseEntity.ok(orderService.getOrdersOfCustomerByOrderStatus(customerInfo.getConsumerId(), orderStatus));
+        }catch (WebClientException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(e.getMessage());
         } catch (OrderNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {

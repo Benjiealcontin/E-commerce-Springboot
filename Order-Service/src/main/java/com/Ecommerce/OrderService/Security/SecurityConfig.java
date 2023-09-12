@@ -31,7 +31,8 @@ public class SecurityConfig {
                             "").permitAll();
                     auth.requestMatchers(HttpMethod.GET,
                    "/api/order/customerOrder",
-                            "/api/order/customer/history").hasAnyRole(CONSUMER);
+                            "/api/order/customer/history",
+                            "/api/order/customer/status/*").hasAnyRole(CONSUMER);
                     auth.requestMatchers(HttpMethod.GET,
                    "/api/order/getAllOrders",
                             "/api/order/status/*").hasAnyRole(ADMIN);
