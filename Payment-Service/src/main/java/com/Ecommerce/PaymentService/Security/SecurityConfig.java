@@ -1,4 +1,4 @@
-package com.Ecommerce.OrderService.Security;
+package com.Ecommerce.PaymentService.Security;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -26,22 +26,9 @@ public class SecurityConfig {
                 authorizeHttpRequests(auth ->
                 {
                     auth.requestMatchers(HttpMethod.GET,
-                   "/actuator/**",
-                            "/api/order/getOrder/*").permitAll();
-                    auth.requestMatchers(HttpMethod.GET,
-                   "/api/order/customerOrder",
-                            "/api/order/customer/history",
-                            "/api/order/customer/status/*").hasAnyRole(CONSUMER);
-                    auth.requestMatchers(HttpMethod.GET,
-                   "/api/order/getAllOrders",
-                            "/api/order/status/*").hasAnyRole(ADMIN);
-                    auth.requestMatchers(HttpMethod.POST, "/api/order/add-order").hasRole(CONSUMER);
-                    auth.requestMatchers(HttpMethod.DELETE, "/api/order/deleteOrder/*").hasRole(ADMIN);
-                    auth.requestMatchers(HttpMethod.PUT,
-                    "/api/order/updateOrder/*",
-                            "/api/order/*/status").hasRole(ADMIN);
+                            "/actuator/**").permitAll();
                     auth.requestMatchers(HttpMethod.POST,
-                            "/api/order/*/cancel").hasAnyRole(ADMIN,CONSUMER);
+                            "/api/payment/order-payment").hasRole(CONSUMER);
                     auth.anyRequest().authenticated();
                 });
 

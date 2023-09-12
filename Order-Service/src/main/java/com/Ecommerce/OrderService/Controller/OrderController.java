@@ -5,7 +5,6 @@ import com.Ecommerce.OrderService.Dto.OrderDTO;
 import com.Ecommerce.OrderService.Enum.OrderStatus;
 import com.Ecommerce.OrderService.Exception.*;
 import com.Ecommerce.OrderService.Request.CustomerInfo;
-import com.Ecommerce.OrderService.Request.OrderPaymentDataRequest;
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Service.Order_Service;
 import com.Ecommerce.OrderService.Service.WebclientService;

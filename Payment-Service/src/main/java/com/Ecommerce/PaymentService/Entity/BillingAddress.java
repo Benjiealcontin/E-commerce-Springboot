@@ -1,4 +1,4 @@
-package com.Ecommerce.OrderService.Entity.OrderPayment;
+package com.Ecommerce.PaymentService.Entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

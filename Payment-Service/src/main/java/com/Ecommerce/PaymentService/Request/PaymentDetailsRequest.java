@@ -1,4 +1,4 @@
-package com.Ecommerce.OrderService.Request;
+package com.Ecommerce.PaymentService.Request;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;

@@ -1,6 +1,7 @@
-package com.Ecommerce.OrderService.Repository;
+package com.Ecommerce.PaymentService.Repository;
 
-import com.Ecommerce.OrderService.Entity.OrderPayment.BillingAddress;
+
+import com.Ecommerce.PaymentService.Entity.BillingAddress;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BillingAddressRepository extends JpaRepository<BillingAddress, Long> {

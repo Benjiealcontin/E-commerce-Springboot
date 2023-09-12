@@ -1,11 +1,12 @@
-package com.Ecommerce.OrderService.Controller;
+package com.Ecommerce.PaymentService.Controller;
 
-import com.Ecommerce.OrderService.Exception.CustomerOwnershipValidationException;
-import com.Ecommerce.OrderService.Exception.OrderNotFoundException;
-import com.Ecommerce.OrderService.Request.CustomerInfo;
-import com.Ecommerce.OrderService.Request.OrderPaymentDataRequest;
-import com.Ecommerce.OrderService.Service.Payment_Service;
-import com.Ecommerce.OrderService.Service.WebclientService;
+
+import com.Ecommerce.PaymentService.Exception.CustomerOwnershipValidationException;
+import com.Ecommerce.PaymentService.Exception.OrderNotFoundException;
+import com.Ecommerce.PaymentService.Request.CustomerInfo;
+import com.Ecommerce.PaymentService.Request.OrderPaymentDataRequest;
+import com.Ecommerce.PaymentService.Service.Payment_Service;
+import com.Ecommerce.PaymentService.Service.WebclientService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,8 +35,8 @@ public class PaymentController {
                 return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
             }
             CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
-            return ResponseEntity.ok(paymentService.orderPayment(customerInfo.getConsumerId(), orderPaymentRequest));
-        } catch (OrderNotFoundException e) {
+            return ResponseEntity.ok(paymentService.orderPayment(bearerToken, customerInfo.getConsumerId(), orderPaymentRequest));
+        }catch (OrderNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (CustomerOwnershipValidationException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());

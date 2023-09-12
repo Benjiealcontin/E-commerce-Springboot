@@ -1,6 +1,7 @@
-package com.Ecommerce.OrderService.Repository;
+package com.Ecommerce.PaymentService.Repository;
 
-import com.Ecommerce.OrderService.Entity.OrderPayment.PaymentDetail;
+
+import com.Ecommerce.PaymentService.Entity.PaymentDetail;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PaymentDetailRepository extends JpaRepository<PaymentDetail, Long> {
