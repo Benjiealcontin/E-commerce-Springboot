@@ -18,6 +18,7 @@
         <module>Customer-Service</module>
         <module>Authentication-Service</module>
         <module>Payment-Service</module>
+        <module>Cart-Service</module>
     </modules>
 
     <properties>

@@ -12,4 +12,6 @@ public class ProductInfoDTO {
     private String productName;
     private double price;
     private int stockQuantity;
+    private String description;
+    private String category;
 }

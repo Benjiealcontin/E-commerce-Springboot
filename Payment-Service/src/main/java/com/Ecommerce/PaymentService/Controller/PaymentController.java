@@ -36,10 +36,22 @@ public class PaymentController {
             }
             CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
             return ResponseEntity.ok(paymentService.orderPayment(bearerToken, customerInfo.getConsumerId(), orderPaymentRequest));
-        }catch (OrderNotFoundException e) {
+        } catch (OrderNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (CustomerOwnershipValidationException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Get Order Payment by ID
+    @GetMapping("/order-payment/{paymentId}")
+    public ResponseEntity<?> getOrderPaymentById(@PathVariable Long paymentId) {
+        try {
+            return ResponseEntity.ok(paymentService.getOrderPayment(paymentId));
+        } catch (OrderNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }

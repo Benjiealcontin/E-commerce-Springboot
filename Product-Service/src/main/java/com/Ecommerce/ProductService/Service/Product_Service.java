@@ -103,7 +103,7 @@ public class Product_Service {
         }
     }
 
-    //Get Product by ID
+    //Get Product by ID in Image
     public ProductWithImageDTO getProductWithImageDetails(long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ProductNotFoundException("Product not found with ID: " + productId));
@@ -137,7 +137,9 @@ public class Product_Service {
                         product.getId(),
                         product.getProductName(),
                         product.getPrice(),
-                        product.getStockQuantity()
+                        product.getStockQuantity(),
+                        product.getDescription(),
+                        product.getCategory()
                 );
                 productsInfo.add(productInfoDTO);
             } else {

@@ -29,6 +29,8 @@ public class SecurityConfig {
                             "/actuator/**").permitAll();
                     auth.requestMatchers(HttpMethod.POST,
                             "/api/payment/order-payment").hasRole(CONSUMER);
+                    auth.requestMatchers(HttpMethod.GET,
+                            "/api/payment/order-payment/*").hasRole(ADMIN);
                     auth.anyRequest().authenticated();
                 });
 
