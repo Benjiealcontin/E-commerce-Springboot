@@ -1,12 +1,10 @@
 package com.Ecommerce.CartService.Service;
 
-import com.Ecommerce.CartService.Dto.CartItemDTO;
-import com.Ecommerce.CartService.Dto.MessageResponse;
-import com.Ecommerce.CartService.Dto.ProductDTO;
-import com.Ecommerce.CartService.Dto.UserCartDTO;
+import com.Ecommerce.CartService.Dto.*;
 import com.Ecommerce.CartService.Entity.CartItem;
 import com.Ecommerce.CartService.Entity.Product;
 import com.Ecommerce.CartService.Entity.UserCart;
+import com.Ecommerce.CartService.Exception.CartItemNotFoundException;
 import com.Ecommerce.CartService.Exception.CartNotFoundException;
 import com.Ecommerce.CartService.Exception.ProductNotFoundException;
 import com.Ecommerce.CartService.Repository.CartItemRepository;
@@ -22,6 +20,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,13 +39,13 @@ public class Cart_Service {
         this.webClientBuilder = webClientBuilder;
     }
 
-    public MessageResponse addToCart(String customerId, CartRequest cartRequest, String bearerToken) {
+    public MessageResponse addToCart(TokenDTO tokenDTO, CartRequest cartRequest, String bearerToken) {
         // Extract product IDs from the order request
         List<Long> productIds = extractProductIds(cartRequest);
 
         // Create a new UserCart for the customer
         UserCart user = new UserCart();
-        user.setCustomerId(customerId);
+        user.setCustomerId(tokenDTO.getSub());
         userCartRepository.save(user);
 
         // Fetch product details based on the product IDs
@@ -157,12 +156,12 @@ public class Cart_Service {
     }
 
     //Get Order Cart of the customer by ID
-    public UserCartDTO getUserCartWithDTOByCustomerId(String customerId) {
+    public UserCartDTO getUserCartWithDTOByCustomerId(TokenDTO tokenDTO) {
         // Retrieve the UserCart entity from the repository (you may need to adjust this part)
-        UserCart userCart = userCartRepository.findByCustomerId(customerId);
+        UserCart userCart = userCartRepository.findByCustomerId(tokenDTO.getSub());
 
         if (userCart == null) {
-            throw new CartNotFoundException("Customer Cart not found for customerId: " + customerId);
+            throw new CartNotFoundException("Customer Cart not found for customerId: " + tokenDTO.getSub());
         }
 
         // Create a UserCartDTO
@@ -191,5 +190,25 @@ public class Cart_Service {
 
         userCartDTO.setCartItems(cartItemDTOs);
         return userCartDTO;
+    }
+
+    //Remove the Item from the Cart
+    public void deleteCartItemWithProduct(Long cartItemId) {
+        Optional<CartItem> cartItemOptional = cartItemRepository.findById(cartItemId);
+
+        if (cartItemOptional.isPresent()) {
+            CartItem cartItem = cartItemOptional.get();
+            Product associatedProduct = cartItem.getProduct();
+
+            // Delete the cart item
+            cartItemRepository.deleteById(cartItemId);
+
+            // Delete the associated product
+            if (associatedProduct != null) {
+                productRepository.deleteById(associatedProduct.getId());
+            }
+        } else {
+            throw new CartItemNotFoundException("Cart Item not found.");
+        }
     }
 }

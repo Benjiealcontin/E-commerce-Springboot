@@ -1,12 +1,13 @@
 package com.Ecommerce.CartService.Controller;
 
+import com.Ecommerce.CartService.Dto.TokenDTO;
+import com.Ecommerce.CartService.Exception.CartItemNotFoundException;
 import com.Ecommerce.CartService.Exception.CartNotFoundException;
 import com.Ecommerce.CartService.Exception.ProductNotFoundException;
 import com.Ecommerce.CartService.Exception.ServiceUnavailableException;
 import com.Ecommerce.CartService.Request.CartRequest;
-import com.Ecommerce.CartService.Request.CustomerInfo;
 import com.Ecommerce.CartService.Service.Cart_Service;
-import com.Ecommerce.CartService.Service.WebclientService;
+import com.Ecommerce.CartService.Service.TokenDecodeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,9 +18,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("api/cart")
 public class CartController {
     private final Cart_Service cartService;
-    private final WebclientService tokenDecodeService;
+    private final TokenDecodeService tokenDecodeService;
 
-    public CartController(Cart_Service cartService, WebclientService tokenDecodeService) {
+    public CartController(Cart_Service cartService, TokenDecodeService tokenDecodeService) {
         this.cartService = cartService;
         this.tokenDecodeService = tokenDecodeService;
     }
@@ -34,8 +35,10 @@ public class CartController {
                 return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
             }
 
-            CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
-            return ResponseEntity.ok(cartService.addToCart(customerInfo.getConsumerId(), cartRequest, bearerToken));
+            String token = tokenDecodeService.extractToken(bearerToken);
+            TokenDTO customerId = tokenDecodeService.decodeUserToken(token);
+
+            return ResponseEntity.ok(cartService.addToCart(customerId, cartRequest, bearerToken));
         } catch (ServiceUnavailableException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(e.getMessage());
         } catch (ProductNotFoundException e) {
@@ -57,12 +60,27 @@ public class CartController {
         }
     }
 
+    //Get Cart of User by Customer ID
     @GetMapping("/user-carts")
     public ResponseEntity<?> getCartByCustomer(@RequestHeader("Authorization") String bearerToken) {
         try {
-            CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
-            return ResponseEntity.ok(cartService.getUserCartWithDTOByCustomerId(customerInfo.getConsumerId()));
+            String token = tokenDecodeService.extractToken(bearerToken);
+            TokenDTO customerId = tokenDecodeService.decodeUserToken(token);
+            return ResponseEntity.ok(cartService.getUserCartWithDTOByCustomerId(customerId));
         } catch (CartNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Remove cart Item
+    @DeleteMapping("/remove-item/{cartId}")
+    public ResponseEntity<?> RemoveCart(@PathVariable Long cartId, @RequestHeader("Authorization") String bearerToken) {
+        try {
+            cartService.deleteCartItemWithProduct(cartId);
+            return ResponseEntity.ok("Remove Successfully.");
+        } catch (CartItemNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
