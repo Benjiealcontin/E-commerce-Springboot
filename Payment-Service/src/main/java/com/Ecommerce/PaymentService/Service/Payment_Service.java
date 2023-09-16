@@ -11,6 +11,7 @@ import com.Ecommerce.PaymentService.Repository.BillingAddressRepository;
 import com.Ecommerce.PaymentService.Repository.OrderPaymentRepository;
 import com.Ecommerce.PaymentService.Repository.PaymentDetailRepository;
 import com.Ecommerce.PaymentService.Request.OrderPaymentDataRequest;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class Payment_Service {
 
 
     //Order Payment
+    @CircuitBreaker(name = "orderPayment", fallbackMethod = "orderPaymentFallback")
     public MessageResponse orderPayment(String bearerToken, String customerId, OrderPaymentDataRequest orderPaymentDetails) {
         // Get the order based on bearerToken and orderPaymentDetails
         OrderDTO order = getCustomerId(bearerToken, orderPaymentDetails);
@@ -148,6 +150,11 @@ public class Payment_Service {
         if (!Objects.equals(customerId, customerIdFromOrder)) {
             throw new CustomerOwnershipValidationException("Customer ID didn't match the Order Customer ID");
         }
+    }
+
+    // Fallback method to handle circuit open state
+    public MessageResponse orderPaymentFallback(String bearerToken, String customerId, OrderPaymentDataRequest orderPaymentDetails, Throwable t) {
+        return new MessageResponse("Payment is temporarily unavailable. Please try again later.");
     }
 
     //Get Payment by ID

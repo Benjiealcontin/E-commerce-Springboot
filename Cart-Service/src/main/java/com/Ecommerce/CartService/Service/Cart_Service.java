@@ -12,6 +12,7 @@ import com.Ecommerce.CartService.Repository.ProductRepository;
 import com.Ecommerce.CartService.Repository.UserCartRepository;
 import com.Ecommerce.CartService.Request.CartRequest;
 import com.Ecommerce.CartService.Request.ProductRequest;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,8 @@ public class Cart_Service {
         this.webClientBuilder = webClientBuilder;
     }
 
+    //Add to Cart
+    @CircuitBreaker(name = "addToCartCircuit", fallbackMethod = "addToCartFallback")
     public MessageResponse addToCart(TokenDTO tokenDTO, CartRequest cartRequest, String bearerToken) {
         // Extract product IDs from the order request
         List<Long> productIds = extractProductIds(cartRequest);
@@ -87,7 +90,6 @@ public class Cart_Service {
         cartItemRepository.saveAll(cartItems);
     }
 
-
     //Get All the Product Ids from the Order Request
     private List<Long> extractProductIds(CartRequest cartRequest) {
         return cartRequest.getCartItems().stream()
@@ -120,6 +122,11 @@ public class Cart_Service {
             String responseBody = "Product is currently unavailable. Please try again later.";
             throw new ProductNotFoundException(responseBody);
         }
+    }
+
+    // Fallback method to handle circuit open state
+    public MessageResponse addToCartFallback(TokenDTO tokenDTO, CartRequest cartRequest, String bearerToken, Throwable t) {
+        return new MessageResponse("Cart addition is temporarily unavailable. Please try again later.");
     }
 
     //Get Order Cart of the customer by ID

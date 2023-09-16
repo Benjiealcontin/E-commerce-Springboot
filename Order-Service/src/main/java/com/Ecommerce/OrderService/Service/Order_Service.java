@@ -10,6 +10,7 @@ import com.Ecommerce.OrderService.Request.CustomerInfo;
 import com.Ecommerce.OrderService.Request.OrderRequest;
 import com.Ecommerce.OrderService.Request.ProductRequest;
 import com.Ecommerce.OrderService.Request.StockQuantityRequest;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.modelmapper.ModelMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -47,6 +48,7 @@ public class Order_Service {
     private static final String PRODUCT_SERVICE_URL = "http://Product-Service/api/product";
 
     //Add Order
+    @CircuitBreaker(name = "addOrder", fallbackMethod = "addOrderFallback")
     public MessageResponse addOrder(OrderRequest orderRequest, CustomerInfo customerInfo, String bearerToken) {
         try {
             // Extract product IDs from the order request
@@ -204,6 +206,11 @@ public class Order_Service {
         shippingAddress.setPostalCode(customerRequest.getPostalCode());
         shippingAddress.setLocality(customerRequest.getLocality());
         return shippingAddress;
+    }
+
+    // Fallback method to handle circuit open state
+    public MessageResponse addOrderFallback(OrderRequest orderRequest, CustomerInfo customerInfo, String bearerToken, Throwable t) {
+        return new MessageResponse("Order creation is temporarily unavailable. Please try again later.");
     }
 
     //Cancel Order

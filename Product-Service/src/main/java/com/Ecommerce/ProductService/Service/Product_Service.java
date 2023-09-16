@@ -15,6 +15,7 @@ import com.Ecommerce.ProductService.Request.ReviewRequest;
 import com.Ecommerce.ProductService.Request.StockQuantityRequest;
 import com.Ecommerce.ProductService.Dto.MessageResponse;
 import com.Ecommerce.ProductService.Utils.ImageUtility;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -42,6 +43,7 @@ public class Product_Service {
     }
 
     //Creating product
+    @CircuitBreaker(name = "createProduct", fallbackMethod = "createProductFallback")
     public MessageResponse createProduct(ProductRequest productRequest, MultipartFile file) throws IOException {
         String productName = productRequest.getProductName();
 
@@ -75,6 +77,11 @@ public class Product_Service {
                 .image(compressedImage)
                 .product(product)
                 .build();
+    }
+
+    // Fallback method to handle circuit open state
+    public MessageResponse createProductFallback(ProductRequest productRequest, MultipartFile file, Throwable t) {
+        return new MessageResponse("Product creation is temporarily unavailable. Please try again later.");
     }
 
     //Creating Review of products
