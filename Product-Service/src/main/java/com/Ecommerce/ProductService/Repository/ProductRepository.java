@@ -9,5 +9,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     List<Product> findByCategory(String category);
 
+    List<Product> findByStockQuantityLessThanEqual(int stockQuantity);
+
     boolean  existsByProductName(String productName);
 }

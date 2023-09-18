@@ -9,6 +9,8 @@
     <file url="file://$PROJECT_DIR$/Discovery-Service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Gateway-Service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Gateway-Service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Inventory-Service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Inventory-Service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Keycloak-Service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Keycloak-Service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/Order-Service/src/main/java" charset="UTF-8" />

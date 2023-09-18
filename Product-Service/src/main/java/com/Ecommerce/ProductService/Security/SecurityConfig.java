@@ -31,6 +31,8 @@ public class SecurityConfig {
                                 "/api/product/allProducts",
                                 "/api/product/reviews/*",
                                 "/api/product/category/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/product/product-restock/*").hasAnyRole(ADMIN,SELLER)
+                        .requestMatchers(HttpMethod.GET, "/api/product/low-inventory").hasAnyRole(ADMIN,SELLER,CONSUMER)
                         .requestMatchers(HttpMethod.POST,"/api/product/add-product").hasAnyRole(ADMIN,SELLER)
                         .requestMatchers(HttpMethod.POST,"/api/product/add-review/*").hasRole(CONSUMER)
                         .requestMatchers(HttpMethod.DELETE,"/api/product/delete/*").hasAnyRole(ADMIN,SELLER)

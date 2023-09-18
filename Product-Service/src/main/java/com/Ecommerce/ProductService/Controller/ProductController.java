@@ -1,6 +1,9 @@
 package com.Ecommerce.ProductService.Controller;
 
-import com.Ecommerce.ProductService.Dto.*;
+import com.Ecommerce.ProductService.Dto.ImageResponseDTO;
+import com.Ecommerce.ProductService.Dto.MessageResponse;
+import com.Ecommerce.ProductService.Dto.ProductInfoDTO;
+import com.Ecommerce.ProductService.Dto.ProductWithImageDTO;
 import com.Ecommerce.ProductService.Entity.Product;
 import com.Ecommerce.ProductService.Entity.Review;
 import com.Ecommerce.ProductService.Exception.*;
@@ -32,7 +35,7 @@ public class ProductController {
     @PostMapping("/add-product")
     public ResponseEntity<?> createProduct(@ModelAttribute @Valid ProductRequest productRequest,
                                            @RequestParam("image") MultipartFile image,
-                                           BindingResult bindingResult){
+                                           BindingResult bindingResult) {
 
         if (image.isEmpty()) {
             return ResponseEntity.badRequest().body("Image file is required");
@@ -56,29 +59,29 @@ public class ProductController {
     @PostMapping("/add-review/{productId}")
     public ResponseEntity<?> createReview(@PathVariable Long productId,
                                           @RequestBody @Valid ReviewRequest reviewRequest,
-                                          BindingResult bindingResult){
+                                          BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             // If there are validation errors, return a bad request response with error details
             return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
         }
 
-        try{
-            return ResponseEntity.ok(productService.createProductReview(productId,reviewRequest));
-        }catch (ProductNotFoundException e) {
+        try {
+            return ResponseEntity.ok(productService.createProductReview(productId, reviewRequest));
+        } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }catch (Exception e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
 
     //Find product by ID
     @GetMapping("/getById/{productId}")
-    public ResponseEntity<?> getProductById(@PathVariable Long productId){
-        try{
+    public ResponseEntity<?> getProductById(@PathVariable Long productId) {
+        try {
             return ResponseEntity.ok(productService.getProductWithImageDetails(productId));
-        }catch (ProductNotFoundException | ImageNotFoundException e) {
+        } catch (ProductNotFoundException | ImageNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }catch (Exception e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
@@ -99,13 +102,13 @@ public class ProductController {
 
     //Find All Products
     @GetMapping("/allProducts")
-    public ResponseEntity<?> allProducts(){
-        try{
+    public ResponseEntity<?> allProducts() {
+        try {
             List<ProductWithImageDTO> allProducts = productService.getAllProductsWithImageDetails();
             return ResponseEntity.ok(allProducts);
-        }catch (ProductNotFoundException e) {
+        } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }catch (Exception e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
@@ -128,57 +131,70 @@ public class ProductController {
 
     //Find All Review by Product ID
     @GetMapping("/reviews/{productId}")
-    public ResponseEntity<?> allReviews(@PathVariable Long productId){
-        try{
+    public ResponseEntity<?> allReviews(@PathVariable Long productId) {
+        try {
             List<Review> allReviews = productService.getAllReviewsById(productId);
             return ResponseEntity.ok(allReviews);
-        }catch (ProductNotFoundException e) {
+        } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }catch (Exception e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
 
     //Find All products by Category
     @GetMapping("/category/{category}")
-    public ResponseEntity<?> getAllProductsByCategory(@PathVariable String category){
-        try{
-            List<Product> allReviews = productService.AllProductsByCategory(category);
+    public ResponseEntity<?> getAllProductsByCategory(@PathVariable String category) {
+        try {
+            List<ProductWithImageDTO> allReviews = productService.getAllProductsByCategory(category);
             return ResponseEntity.ok(allReviews);
-        }catch (ProductNotFoundException e) {
+        } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }catch (Exception e) {
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Find All low Inventory
+    @GetMapping("/low-inventory")
+    public ResponseEntity<?> getAllProductsWithLowInventory() {
+        try {
+            List<ProductWithImageDTO> lowInventory = productService.AllProductsByLowInventory();
+            return ResponseEntity.ok(lowInventory);
+        } catch (ProductNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
 
     //Delete Product
     @DeleteMapping("/delete/{productId}")
-    public ResponseEntity<?> deleteProduct(@PathVariable Long productId){
-        try{
+    public ResponseEntity<?> deleteProduct(@PathVariable Long productId) {
+        try {
             productService.deleteProduct(productId);
             return ResponseEntity.ok(new MessageResponse("Product Delete Successfully!"));
-        }catch (ProductNotFoundException e) {
+        } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }catch (Exception e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
 
     //Update Product
     @PutMapping("/update/{Id}")
-    public ResponseEntity<?> updateProduct(@PathVariable Long Id,@RequestBody ProductRequest productRequest){
-        try{
-            productService.updateProduct(Id,productRequest);
+    public ResponseEntity<?> updateProduct(@PathVariable Long Id, @RequestBody ProductRequest productRequest) {
+        try {
+            productService.updateProduct(Id, productRequest);
             return ResponseEntity.ok(new MessageResponse("Product Update Successfully!"));
-        }catch (ProductNotFoundException e) {
+        } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }catch (Exception e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }
     }
 
-    //Update Quantity of Product
+    //Decrement Product when order in place
     @PutMapping("/update-quantity/{id}")
     public ResponseEntity<?> updateQuantityOfProduct(@PathVariable Long id, @RequestBody StockQuantityRequest stockQuantityRequest) {
         try {
@@ -193,19 +209,31 @@ public class ProductController {
         }
     }
 
+    //Increment Product when restock
+    @PutMapping("/product-restock/{id}")
+    public ResponseEntity<?> productRestock(@PathVariable Long id, @RequestBody StockQuantityRequest stockQuantityRequest) {
+        try {
+            productService.restockOfProduct(id, stockQuantityRequest);
+            return ResponseEntity.ok(new MessageResponse("Product Restock Update Successfully."));
+        } catch (ProductNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
     //Update Image
     @PutMapping("/update-image/{productId}")
     public ResponseEntity<?> updateProductImage(
             @PathVariable Long productId,
-            @RequestParam("image") MultipartFile imageFile)
-    {
+            @RequestParam("image") MultipartFile imageFile) {
         try {
             Product product = productService.getProductById(productId);
 
             productService.updateProductImage(product, imageFile);
 
             return ResponseEntity.ok(new MessageResponse("Product image updated successfully."));
-        }catch (ProductNotFoundException e) {
+        } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());

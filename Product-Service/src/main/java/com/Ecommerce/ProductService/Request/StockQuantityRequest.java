@@ -12,5 +12,5 @@ import lombok.NoArgsConstructor;
 public class StockQuantityRequest {
     @Min(value = 1, message = "Stock Quantity must be at least 1")
     @Max(value = 5, message = "Stock Quantity must be at most 5")
-    private int subtractionAmount;
+    private int quantityAmount;
 }

@@ -1,6 +1,7 @@
 package com.Ecommerce.ProductService.Service;
 
 import com.Ecommerce.ProductService.Dto.ImageResponseDTO;
+import com.Ecommerce.ProductService.Dto.MessageResponse;
 import com.Ecommerce.ProductService.Dto.ProductInfoDTO;
 import com.Ecommerce.ProductService.Dto.ProductWithImageDTO;
 import com.Ecommerce.ProductService.Entity.Image;
@@ -13,7 +14,6 @@ import com.Ecommerce.ProductService.Repository.ReviewRepository;
 import com.Ecommerce.ProductService.Request.ProductRequest;
 import com.Ecommerce.ProductService.Request.ReviewRequest;
 import com.Ecommerce.ProductService.Request.StockQuantityRequest;
-import com.Ecommerce.ProductService.Dto.MessageResponse;
 import com.Ecommerce.ProductService.Utils.ImageUtility;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.modelmapper.ModelMapper;
@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class Product_Service {
@@ -34,6 +35,7 @@ public class Product_Service {
     private final ReviewRepository reviewRepository;
     private final ImageRepository imageRepository;
     private final ModelMapper modelMapper;
+
     @Autowired
     public Product_Service(ProductRepository productRepository, ReviewRepository reviewRepository, ImageRepository imageRepository, ModelMapper modelMapper) {
         this.productRepository = productRepository;
@@ -85,9 +87,9 @@ public class Product_Service {
     }
 
     //Creating Review of products
-    public MessageResponse createProductReview(Long productId, ReviewRequest reviewRequest){
+    public MessageResponse createProductReview(Long productId, ReviewRequest reviewRequest) {
         productRepository.findById(productId)
-            .orElseThrow(() -> new ProductNotFoundException("Product with ID " + productId + " not found."));
+                .orElseThrow(() -> new ProductNotFoundException("Product with ID " + productId + " not found."));
         Review review = modelMapper.map(reviewRequest, Review.class);
         review.setProductId(productId);
         reviewRepository.save(review);
@@ -170,11 +172,7 @@ public class Product_Service {
             Image image = imageRepository.findByProductId(product.getId())
                     .orElseThrow(() -> new ImageNotFoundException("Image not found for Product with ID: " + product.getId()));
 
-            ProductWithImageDTO productWithImageDTO = modelMapper.map(product, ProductWithImageDTO.class);
-            productWithImageDTO.setImageName(image.getName());
-            productWithImageDTO.setImageType(image.getType());
-            productWithImageDTO.setImageData(image.getImage());
-
+            ProductWithImageDTO productWithImageDTO = mapProductToDTO(product, image);
             productWithImageDTOList.add(productWithImageDTO);
         }
 
@@ -182,7 +180,7 @@ public class Product_Service {
     }
 
     //Get All Reviews by ID
-    public List<Review> getAllReviewsById(long productId){
+    public List<Review> getAllReviewsById(long productId) {
         List<Review> reviews = reviewRepository.findByProductId(productId);
         if (reviews.isEmpty()) {
             throw new ProductNotFoundException("Product with ID " + productId + " not found.");
@@ -191,16 +189,61 @@ public class Product_Service {
     }
 
     //List All Products by Category
-    public List<Product> AllProductsByCategory(String category){
+    public List<ProductWithImageDTO> getAllProductsByCategory(String category) {
         List<Product> products = productRepository.findByCategory(category);
+
         if (products.isEmpty()) {
-            throw new ProductNotFoundException("Product with Category " + category + " not found.");
+            throw new ProductNotFoundException("Products with category '" + category + "' not found.");
         }
-        return products;
+
+        List<ProductWithImageDTO> productWithImageDTOList = new ArrayList<>(products.size());
+
+        for (Product product : products) {
+            Image image = imageRepository.findByProductId(product.getId())
+                    .orElseThrow(() -> new ImageNotFoundException("Image not found for Product with ID: " + product.getId()));
+
+            ProductWithImageDTO productWithImageDTO = mapProductToDTO(product, image);
+            productWithImageDTOList.add(productWithImageDTO);
+        }
+
+        return productWithImageDTOList;
+    }
+
+    private ProductWithImageDTO mapProductToDTO(Product product, Image image) {
+        ProductWithImageDTO productWithImageDTO = modelMapper.map(product, ProductWithImageDTO.class);
+        productWithImageDTO.setImageName(image.getName());
+        productWithImageDTO.setImageType(image.getType());
+        productWithImageDTO.setImageData(image.getImage());
+
+        return productWithImageDTO;
+    }
+
+
+    //Low Inventory
+    public List<ProductWithImageDTO> AllProductsByLowInventory() {
+        List<Product> products = productRepository.findByStockQuantityLessThanEqual(10);
+
+        if (products.isEmpty()) {
+            throw new ProductNotFoundException("No products with low inventory (stock quantity <= 10) were found.");
+        }
+
+        return products.stream()
+                .map(product -> {
+                    Image image = imageRepository.findByProductId(product.getId())
+                            .orElseThrow(() -> new ImageNotFoundException("Image not found for Product with ID: " + product.getId()));
+
+                    ProductWithImageDTO productWithImageDTO = modelMapper.map(product, ProductWithImageDTO.class);
+                    productWithImageDTO.setImageName(image.getName());
+                    productWithImageDTO.setImageType(image.getType());
+                    productWithImageDTO.setImageData(image.getImage());
+
+                    return productWithImageDTO;
+                })
+                .collect(Collectors.toList());
     }
 
     //Delete Product
-    public void deleteProduct(Long productId){
+    public void deleteProduct(Long productId) {
         if (!productRepository.existsById(productId)) {
             throw new ProductNotFoundException("Product with ID " + productId + " not found.");
         }
@@ -216,12 +259,12 @@ public class Product_Service {
         productRepository.save(existingProduct);
     }
 
-    //Update Stock quantity of Product
+    //Decrement Product when order in place
     public void updateQuantityOfProduct(long id, StockQuantityRequest stockQuantityRequest) {
         Product existingProduct = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Product with id " + id + " not found"));
 
-        int requestedSubtraction = stockQuantityRequest.getSubtractionAmount();
+        int requestedSubtraction = stockQuantityRequest.getQuantityAmount();
         int currentStock = existingProduct.getStockQuantity();
 
         if (currentStock < requestedSubtraction) {
@@ -231,8 +274,19 @@ public class Product_Service {
         existingProduct.setStockQuantity(currentStock - requestedSubtraction);
         productRepository.save(existingProduct);
 
-        // Debugging output
-        System.out.println("Updated Stock: " + existingProduct.getStockQuantity());
+    }
+
+    //Increment Product when restock
+    public void restockOfProduct(long id, StockQuantityRequest stockQuantityRequest) {
+        Product existingProduct = productRepository.findById(id)
+                .orElseThrow(() -> new ProductNotFoundException("Product with id " + id + " not found"));
+
+        int requestedSubtraction = stockQuantityRequest.getQuantityAmount();
+        int currentStock = existingProduct.getStockQuantity();
+
+        existingProduct.setStockQuantity(currentStock + requestedSubtraction);
+        productRepository.save(existingProduct);
+
     }
 
     //Update Image
