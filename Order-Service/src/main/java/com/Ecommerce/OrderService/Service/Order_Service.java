@@ -46,9 +46,10 @@ public class Order_Service {
     }
 
     private static final String PRODUCT_SERVICE_URL = "http://Product-Service/api/product";
+    private static final String INVENTORY_SERVICE_URL = "http://Inventory-Service/api/inventory";
 
     //Add Order
-    @CircuitBreaker(name = "addOrder", fallbackMethod = "addOrderFallback")
+
     public MessageResponse addOrder(OrderRequest orderRequest, CustomerInfo customerInfo, String bearerToken) {
         try {
             // Extract product IDs from the order request
@@ -104,7 +105,6 @@ public class Order_Service {
         // Create and save a new order
         Order savedOrder = new Order();
         savedOrder.setOrderStatus(OrderStatus.PENDING);
-        orderRepository.save(savedOrder); // Save the order first
 
         // Iterate through each product to process order items
         // Count how many quantity customer Order
@@ -113,6 +113,9 @@ public class Order_Service {
 
             if (totalQuantity > 0 && totalQuantity <= product.getStockQuantity()) {
                 double itemTotalPrice = product.getPrice() * totalQuantity;
+
+                // Attempt to save the order first
+                savedOrder = orderRepository.save(savedOrder);
 
                 OrderItem savedOrderItem = createAndSaveOrderItem(savedOrder, totalQuantity, itemTotalPrice);
                 associateOrderItemWithProduct(savedOrderItem, product);
@@ -166,7 +169,7 @@ public class Order_Service {
     // Updates the stock quantity of a product using WebClient PUT request
     private void updateProductStockQuantity(Long productId, int quantity, String bearerToken) {
         webClientBuilder.build().put()
-                .uri(PRODUCT_SERVICE_URL + "/update-quantity/{id}", productId)
+                .uri(INVENTORY_SERVICE_URL + "/decrement/{id}", productId)
                 .header(HttpHeaders.AUTHORIZATION, bearerToken)
                 .body(BodyInserters.fromValue(new StockQuantityRequest(quantity)))
                 .retrieve()

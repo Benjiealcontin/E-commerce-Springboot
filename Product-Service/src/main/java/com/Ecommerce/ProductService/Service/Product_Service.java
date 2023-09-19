@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class Product_Service {
@@ -218,30 +217,6 @@ public class Product_Service {
         return productWithImageDTO;
     }
 
-
-    //Low Inventory
-    public List<ProductWithImageDTO> AllProductsByLowInventory() {
-        List<Product> products = productRepository.findByStockQuantityLessThanEqual(10);
-
-        if (products.isEmpty()) {
-            throw new ProductNotFoundException("No products with low inventory (stock quantity <= 10) were found.");
-        }
-
-        return products.stream()
-                .map(product -> {
-                    Image image = imageRepository.findByProductId(product.getId())
-                            .orElseThrow(() -> new ImageNotFoundException("Image not found for Product with ID: " + product.getId()));
-
-                    ProductWithImageDTO productWithImageDTO = modelMapper.map(product, ProductWithImageDTO.class);
-                    productWithImageDTO.setImageName(image.getName());
-                    productWithImageDTO.setImageType(image.getType());
-                    productWithImageDTO.setImageData(image.getImage());
-
-                    return productWithImageDTO;
-                })
-                .collect(Collectors.toList());
-    }
-
     //Delete Product
     public void deleteProduct(Long productId) {
         if (!productRepository.existsById(productId)) {
@@ -257,36 +232,6 @@ public class Product_Service {
 
         modelMapper.map(productRequest, existingProduct);
         productRepository.save(existingProduct);
-    }
-
-    //Decrement Product when order in place
-    public void updateQuantityOfProduct(long id, StockQuantityRequest stockQuantityRequest) {
-        Product existingProduct = productRepository.findById(id)
-                .orElseThrow(() -> new ProductNotFoundException("Product with id " + id + " not found"));
-
-        int requestedSubtraction = stockQuantityRequest.getQuantityAmount();
-        int currentStock = existingProduct.getStockQuantity();
-
-        if (currentStock < requestedSubtraction) {
-            throw new InsufficientStockException("Insufficient stock for product with id " + id);
-        }
-
-        existingProduct.setStockQuantity(currentStock - requestedSubtraction);
-        productRepository.save(existingProduct);
-
-    }
-
-    //Increment Product when restock
-    public void restockOfProduct(long id, StockQuantityRequest stockQuantityRequest) {
-        Product existingProduct = productRepository.findById(id)
-                .orElseThrow(() -> new ProductNotFoundException("Product with id " + id + " not found"));
-
-        int requestedSubtraction = stockQuantityRequest.getQuantityAmount();
-        int currentStock = existingProduct.getStockQuantity();
-
-        existingProduct.setStockQuantity(currentStock + requestedSubtraction);
-        productRepository.save(existingProduct);
-
     }
 
     //Update Image

@@ -155,19 +155,6 @@ public class ProductController {
         }
     }
 
-    //Find All low Inventory
-    @GetMapping("/low-inventory")
-    public ResponseEntity<?> getAllProductsWithLowInventory() {
-        try {
-            List<ProductWithImageDTO> lowInventory = productService.AllProductsByLowInventory();
-            return ResponseEntity.ok(lowInventory);
-        } catch (ProductNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
-        }
-    }
-
     //Delete Product
     @DeleteMapping("/delete/{productId}")
     public ResponseEntity<?> deleteProduct(@PathVariable Long productId) {
@@ -187,34 +174,6 @@ public class ProductController {
         try {
             productService.updateProduct(Id, productRequest);
             return ResponseEntity.ok(new MessageResponse("Product Update Successfully!"));
-        } catch (ProductNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
-        }
-    }
-
-    //Decrement Product when order in place
-    @PutMapping("/update-quantity/{id}")
-    public ResponseEntity<?> updateQuantityOfProduct(@PathVariable Long id, @RequestBody StockQuantityRequest stockQuantityRequest) {
-        try {
-            productService.updateQuantityOfProduct(id, stockQuantityRequest);
-            return ResponseEntity.ok(new MessageResponse("Product Stock Quantity Update Successfully."));
-        } catch (ProductNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (InsufficientStockException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
-        }
-    }
-
-    //Increment Product when restock
-    @PutMapping("/product-restock/{id}")
-    public ResponseEntity<?> productRestock(@PathVariable Long id, @RequestBody StockQuantityRequest stockQuantityRequest) {
-        try {
-            productService.restockOfProduct(id, stockQuantityRequest);
-            return ResponseEntity.ok(new MessageResponse("Product Restock Update Successfully."));
         } catch (ProductNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {

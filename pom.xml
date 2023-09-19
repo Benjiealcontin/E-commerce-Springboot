@@ -19,6 +19,7 @@
         <module>Authentication-Service</module>
         <module>Payment-Service</module>
         <module>Cart-Service</module>
+        <module>Inventory-Service</module>
     </modules>
 
     <properties>
