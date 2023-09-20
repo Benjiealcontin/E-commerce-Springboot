@@ -49,7 +49,7 @@ public class Order_Service {
     private static final String INVENTORY_SERVICE_URL = "http://Inventory-Service/api/inventory";
 
     //Add Order
-
+    @CircuitBreaker(name = "addOrder", fallbackMethod = "addOrderFallback")
     public MessageResponse addOrder(OrderRequest orderRequest, CustomerInfo customerInfo, String bearerToken) {
         try {
             // Extract product IDs from the order request
@@ -104,7 +104,7 @@ public class Order_Service {
 
         // Create and save a new order
         Order savedOrder = new Order();
-        savedOrder.setOrderStatus(OrderStatus.PENDING);
+        savedOrder.setOrderStatus(OrderStatus.TO_PAID);
 
         // Iterate through each product to process order items
         // Count how many quantity customer Order
