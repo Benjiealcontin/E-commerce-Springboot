@@ -4,6 +4,7 @@ import com.Ecommerce.CartService.Dto.*;
 import com.Ecommerce.CartService.Entity.CartItem;
 import com.Ecommerce.CartService.Entity.Product;
 import com.Ecommerce.CartService.Entity.UserCart;
+import com.Ecommerce.CartService.Enum.CartStatus;
 import com.Ecommerce.CartService.Exception.CartItemNotFoundException;
 import com.Ecommerce.CartService.Exception.CartNotFoundException;
 import com.Ecommerce.CartService.Exception.ProductNotFoundException;
@@ -49,6 +50,7 @@ public class Cart_Service {
         // Create a new UserCart for the customer
         UserCart user = new UserCart();
         user.setCustomerId(tokenDTO.getSub());
+        user.setStatus(CartStatus.PENDING);
         userCartRepository.save(user);
 
         // Fetch product details based on the product IDs
