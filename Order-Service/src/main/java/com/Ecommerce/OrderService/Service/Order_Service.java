@@ -104,7 +104,7 @@ public class Order_Service {
 
         // Create and save a new order
         Order savedOrder = new Order();
-        savedOrder.setOrderStatus(OrderStatus.TO_PAID);
+        savedOrder.setOrderStatus(OrderStatus.PENDING);
 
         // Iterate through each product to process order items
         // Count how many quantity customer Order
