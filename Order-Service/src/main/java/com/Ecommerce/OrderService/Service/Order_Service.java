@@ -6,7 +6,9 @@ import com.Ecommerce.OrderService.Entity.*;
 import com.Ecommerce.OrderService.Exception.*;
 import com.Ecommerce.OrderService.Repository.*;
 import com.Ecommerce.OrderService.Request.*;
+import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
+import org.springframework.beans.BeanUtils;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -403,67 +405,54 @@ public class Order_Service {
         orderRepository.deleteById(orderId);
     }
 
-    //TODO fix this
     //Update Order Details
+    @Transactional
     public void updateOrderDetails(Long orderId, OrderDTO updatedOrderDTO) {
-        Order existingOrder = orderRepository.findById(orderId).orElse(null);
+        // Find the existing order
+        Order existingOrder = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order with ID " + orderId + " not found"));
 
-        if (existingOrder != null) {
-            // Update fields from the updatedOrderDTO to the existingOrder
-            existingOrder.setOrderDate(updatedOrderDTO.getOrderDate());
-            existingOrder.setOrderStatus(updatedOrderDTO.getOrderStatus());
-            existingOrder.setTotalAmount(updatedOrderDTO.getTotalAmount());
+        // Update order fields from the updatedOrderDTO
+        BeanUtils.copyProperties(updatedOrderDTO, existingOrder, "id");
 
-            // Update Customer details if provided in the updatedOrderDTO
-            if (updatedOrderDTO.getCustomer() != null) {
-                CustomerDTO updatedCustomerDTO = updatedOrderDTO.getCustomer();
-                Customer existingCustomer = existingOrder.getCustomers();
+        // Update Customer details if provided in the updatedOrderDTO
+        if (updatedOrderDTO.getCustomer() != null) {
+            CustomerDTO updatedCustomerDTO = updatedOrderDTO.getCustomer();
+            Customer existingCustomer = existingOrder.getCustomers();
 
-                if (existingCustomer != null) {
-                    // Update customer fields from the updatedCustomerDTO
-                    existingCustomer.setFullName(updatedCustomerDTO.getFullName());
-                    existingCustomer.setFirstName(updatedCustomerDTO.getFirstName());
-                    existingCustomer.setLastName(updatedCustomerDTO.getLastName());
-                    existingCustomer.setEmail(updatedCustomerDTO.getEmail());
-                    existingCustomer.setPhoneNumber(updatedCustomerDTO.getPhoneNumber());
-                }
+            if (existingCustomer != null) {
+                // Update customer fields from the updatedCustomerDTO
+                BeanUtils.copyProperties(updatedCustomerDTO, existingCustomer);
             }
+        }
 
-            // Update Order Items details if provided in the updatedOrderDTO
-            if (updatedOrderDTO.getOrderItems() != null) {
-                List<OrderItemDTO> updatedOrderItemDTOs = updatedOrderDTO.getOrderItems();
+        // Update Order Items details if provided in the updatedOrderDTO
+        if (updatedOrderDTO.getOrderItems() != null) {
+            List<OrderItemDTO> updatedOrderItemDTOs = updatedOrderDTO.getOrderItems();
 
-                for (int i = 0; i < updatedOrderItemDTOs.size(); i++) {
-                    OrderItemDTO updatedOrderItemDTO = updatedOrderItemDTOs.get(i);
-                    OrderItem existingOrderItem = existingOrder.getOrderItems().get(i);
+            for (int i = 0; i < updatedOrderItemDTOs.size(); i++) {
+                OrderItemDTO updatedOrderItemDTO = updatedOrderItemDTOs.get(i);
+                OrderItem existingOrderItem = existingOrder.getOrderItems().get(i);
 
-                    if (existingOrderItem != null) {
-                        // Update order item fields from the updatedOrderItemDTO
-                        existingOrderItem.setQuantity(updatedOrderItemDTO.getQuantity());
-                        existingOrderItem.setTotalPrice(updatedOrderItemDTO.getTotalPrice());
+                if (existingOrderItem != null) {
+                    // Update order item fields from the updatedOrderItemDTO
+                    BeanUtils.copyProperties(updatedOrderItemDTO, existingOrderItem, "id");
 
-                        // Update Product details if provided in the updatedOrderItemDTO
-                        if (updatedOrderItemDTO.getProduct() != null) {
-                            ProductDTO updatedProductDTO = updatedOrderItemDTO.getProduct();
-                            Product existingProduct = existingOrderItem.getProduct();
+                    // Update Product details if provided in the updatedOrderItemDTO
+                    if (updatedOrderItemDTO.getProduct() != null) {
+                        ProductDTO updatedProductDTO = updatedOrderItemDTO.getProduct();
+                        Product existingProduct = existingOrderItem.getProduct();
 
-                            if (existingProduct != null) {
-                                // Update product fields from the updatedProductDTO
-                                existingProduct.setProductName(updatedProductDTO.getProductName());
-                                existingProduct.setPrice(updatedProductDTO.getPrice());
-                            }
+                        if (existingProduct != null) {
+                            // Update product fields from the updatedProductDTO
+                            BeanUtils.copyProperties(updatedProductDTO, existingProduct);
                         }
                     }
                 }
             }
-
-            // Save the updated order and return the updated OrderDTO
-            Order updatedOrder = orderRepository.save(existingOrder);
-            modelMapper.map(updatedOrder, OrderDTO.class);
-        } else {
-            throw new OrderNotFoundException("Order with ID " + orderId + " not found");
         }
-
+        // Save the updated order
+        orderRepository.save(existingOrder);
     }
 
     //Update Order Status
