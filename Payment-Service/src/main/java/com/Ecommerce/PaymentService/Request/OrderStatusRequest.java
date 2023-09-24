@@ -1,4 +1,4 @@
-package com.Ecommerce.OrderService.Request;
+package com.Ecommerce.PaymentService.Request;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,6 +9,4 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class OrderStatusRequest {
     private String orderStatus;
-
 }
-

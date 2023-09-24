@@ -4,14 +4,13 @@ import com.Ecommerce.PaymentService.Dto.*;
 import com.Ecommerce.PaymentService.Entity.BillingAddress;
 import com.Ecommerce.PaymentService.Entity.OrderPayment;
 import com.Ecommerce.PaymentService.Entity.PaymentDetail;
-import com.Ecommerce.PaymentService.Enum.OrderStatus;
 import com.Ecommerce.PaymentService.Exception.CustomerOwnershipValidationException;
 import com.Ecommerce.PaymentService.Exception.OrderNotFoundException;
 import com.Ecommerce.PaymentService.Repository.BillingAddressRepository;
 import com.Ecommerce.PaymentService.Repository.OrderPaymentRepository;
 import com.Ecommerce.PaymentService.Repository.PaymentDetailRepository;
 import com.Ecommerce.PaymentService.Request.OrderPaymentDataRequest;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import com.Ecommerce.PaymentService.Request.OrderStatusRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -43,7 +42,7 @@ public class Payment_Service {
 
 
     //Order Payment
-    @CircuitBreaker(name = "orderPayment", fallbackMethod = "orderPaymentFallback")
+
     public MessageResponse orderPayment(String bearerToken, String customerId, OrderPaymentDataRequest orderPaymentDetails) {
         // Get the order based on bearerToken and orderPaymentDetails
         OrderDTO order = getCustomerId(bearerToken, orderPaymentDetails);
@@ -54,11 +53,11 @@ public class Payment_Service {
         // Update the order status to DELIVERED
         UpdateOrderStatus(bearerToken, orderPaymentDetails);
 
-        // Save the order payment
-        OrderPayment orderPayment = saveOrderPayment(orderPaymentDetails);
-
-        // Save the order payment in the repository
-        orderPaymentRepository.save(orderPayment);
+//        // Save the order payment
+//        OrderPayment orderPayment = saveOrderPayment(orderPaymentDetails);
+//
+//        // Save the order payment in the repository
+//        orderPaymentRepository.save(orderPayment);
 
         // Return a success message
         return new MessageResponse("Payment Successfully.");
@@ -69,6 +68,7 @@ public class Payment_Service {
         OrderPayment orderPayment = new OrderPayment();
         orderPayment.setOrderId(request.getOrderId());
         orderPayment.setPaymentMethod(request.getPaymentMethod());
+        orderPayment.setShippingMethod(request.getShippingMethod());
         orderPayment.setAmount(request.getAmount());
 
         // Create a PaymentDetail entity
@@ -109,17 +109,17 @@ public class Payment_Service {
 
     public void UpdateOrderStatus(String bearerToken, OrderPaymentDataRequest orderPaymentDataRequest) {
         // Define the new order status as DELIVERED
-        OrderStatus newStatus = OrderStatus.DELIVERED;
         try {
             // Use WebClient to update the order status
             webClientBuilder.build()
                     .put()
-                    .uri(ORDER_SERVICE_URL + "/{orderId}/status", orderPaymentDataRequest.getOrderId())
+                    .uri(ORDER_SERVICE_URL + "/status/{orderId}", orderPaymentDataRequest.getOrderId())
                     .header(HttpHeaders.AUTHORIZATION, bearerToken)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(BodyInserters.fromValue(newStatus))
+                    .body(BodyInserters.fromValue(new OrderStatusRequest("PAID")))
                     .retrieve()
-                    .bodyToMono(String.class);
+                    .toBodilessEntity()
+                    .block();
         } catch (WebClientResponseException.NotFound e) {
             // Handle the case where the order is not found
             String responseBody = e.getResponseBodyAsString();

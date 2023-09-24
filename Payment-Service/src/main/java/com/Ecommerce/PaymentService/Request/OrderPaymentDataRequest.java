@@ -20,6 +20,8 @@ public class OrderPaymentDataRequest {
     @NotBlank(message = "paymentMethod is required")
     private String paymentMethod;
 
+    private String shippingMethod;
+
     @Valid
     private PaymentDetailsRequest paymentDetail;
 

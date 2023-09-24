@@ -38,8 +38,9 @@ public class SecurityConfig {
                     auth.requestMatchers(HttpMethod.POST, "/api/order/add-order").hasRole(CONSUMER);
                     auth.requestMatchers(HttpMethod.DELETE, "/api/order/deleteOrder/*").hasRole(ADMIN);
                     auth.requestMatchers(HttpMethod.PUT,
-                    "/api/order/updateOrder/*",
-                            "/api/order/*/status").hasRole(ADMIN);
+                    "/api/order/updateOrder/*").hasRole(ADMIN);
+                    auth.requestMatchers(HttpMethod.PUT,
+                            "/api/order/status/*").hasAnyRole(CONSUMER);
                     auth.requestMatchers(HttpMethod.POST,
                             "/api/order/*/cancel").hasAnyRole(ADMIN,CONSUMER);
                     auth.anyRequest().authenticated();

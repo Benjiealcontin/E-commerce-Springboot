@@ -16,13 +16,11 @@ public class OrderPayment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private Long orderId;
     private String paymentMethod;
-
+    private String shippingMethod;
     @OneToOne(mappedBy = "orderPayment", cascade = CascadeType.ALL)
     @PrimaryKeyJoinColumn
     private PaymentDetail paymentDetail;
-
     private BigDecimal amount;
 }

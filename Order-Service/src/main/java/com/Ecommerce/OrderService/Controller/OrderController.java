@@ -2,10 +2,10 @@ package com.Ecommerce.OrderService.Controller;
 
 import com.Ecommerce.OrderService.Dto.MessageResponse;
 import com.Ecommerce.OrderService.Dto.OrderDTO;
-import com.Ecommerce.OrderService.Enum.OrderStatus;
 import com.Ecommerce.OrderService.Exception.*;
 import com.Ecommerce.OrderService.Request.CustomerInfo;
 import com.Ecommerce.OrderService.Request.OrderRequest;
+import com.Ecommerce.OrderService.Request.OrderStatusRequest;
 import com.Ecommerce.OrderService.Service.Order_Service;
 import com.Ecommerce.OrderService.Service.WebclientService;
 import jakarta.validation.Valid;
@@ -100,7 +100,7 @@ public class OrderController {
 
     //Find Orders by Order Status
     @GetMapping("/status/{orderStatus}")
-    public ResponseEntity<?> getOrderByConsumerId(@PathVariable OrderStatus orderStatus) {
+    public ResponseEntity<?> getOrderOfConsumerIdByStatus(@PathVariable String orderStatus) {
         try {
             return ResponseEntity.ok(orderService.getOrdersByOrderStatus(orderStatus));
         } catch (OrderNotFoundException e) {
@@ -112,12 +112,12 @@ public class OrderController {
 
     //Find All Orders of Costumer By OrderStatus
     @GetMapping("/customer/status/{orderStatus}")
-    public ResponseEntity<?> getOrderOfCustomerByConsumerId(@PathVariable OrderStatus orderStatus,
+    public ResponseEntity<?> getOrderOfCustomerByConsumerId(@PathVariable String orderStatus,
                                                             @RequestHeader("Authorization") String bearerToken) {
         try {
             CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
             return ResponseEntity.ok(orderService.getOrdersOfCustomerByOrderStatus(customerInfo.getConsumerId(), orderStatus));
-        }catch (WebClientException e) {
+        } catch (WebClientException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(e.getMessage());
         } catch (OrderNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
@@ -179,8 +179,8 @@ public class OrderController {
     }
 
     //Update Order Status
-    @PutMapping("/{orderId}/status")
-    public ResponseEntity<?> updateOrderStatus(@PathVariable Long orderId, @RequestParam OrderStatus newStatus) {
+    @PutMapping("/status/{orderId}")
+    public ResponseEntity<?> updateOrderStatus(@PathVariable Long orderId, @RequestBody OrderStatusRequest newStatus) {
         try {
             orderService.updateOrderStatus(orderId, newStatus);
             return ResponseEntity.ok("Order Status Successfully Updated.");

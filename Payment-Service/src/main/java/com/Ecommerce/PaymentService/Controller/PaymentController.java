@@ -3,6 +3,7 @@ package com.Ecommerce.PaymentService.Controller;
 
 import com.Ecommerce.PaymentService.Exception.CustomerOwnershipValidationException;
 import com.Ecommerce.PaymentService.Exception.OrderNotFoundException;
+import com.Ecommerce.PaymentService.Exception.ServiceUnavailableException;
 import com.Ecommerce.PaymentService.Request.CustomerInfo;
 import com.Ecommerce.PaymentService.Request.OrderPaymentDataRequest;
 import com.Ecommerce.PaymentService.Service.Payment_Service;
@@ -38,8 +39,10 @@ public class PaymentController {
             return ResponseEntity.ok(paymentService.orderPayment(bearerToken, customerInfo.getConsumerId(), orderPaymentRequest));
         } catch (OrderNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (CustomerOwnershipValidationException e) {
+        }catch (CustomerOwnershipValidationException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (ServiceUnavailableException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
         }

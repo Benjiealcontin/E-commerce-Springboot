@@ -3,14 +3,9 @@ package com.Ecommerce.OrderService.Service;
 
 import com.Ecommerce.OrderService.Dto.*;
 import com.Ecommerce.OrderService.Entity.*;
-import com.Ecommerce.OrderService.Enum.OrderStatus;
 import com.Ecommerce.OrderService.Exception.*;
 import com.Ecommerce.OrderService.Repository.*;
-import com.Ecommerce.OrderService.Request.CustomerInfo;
-import com.Ecommerce.OrderService.Request.OrderRequest;
-import com.Ecommerce.OrderService.Request.ProductRequest;
-import com.Ecommerce.OrderService.Request.StockQuantityRequest;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import com.Ecommerce.OrderService.Request.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -49,7 +44,7 @@ public class Order_Service {
     private static final String INVENTORY_SERVICE_URL = "http://Inventory-Service/api/inventory";
 
     //Add Order
-    @CircuitBreaker(name = "addOrder", fallbackMethod = "addOrderFallback")
+
     public MessageResponse addOrder(OrderRequest orderRequest, CustomerInfo customerInfo, String bearerToken) {
         try {
             // Extract product IDs from the order request
@@ -104,7 +99,7 @@ public class Order_Service {
 
         // Create and save a new order
         Order savedOrder = new Order();
-        savedOrder.setOrderStatus(OrderStatus.PENDING);
+        savedOrder.setOrderStatus("PENDING");
 
         // Iterate through each product to process order items
         // Count how many quantity customer Order
@@ -114,13 +109,13 @@ public class Order_Service {
             if (totalQuantity > 0 && totalQuantity <= product.getStockQuantity()) {
                 double itemTotalPrice = product.getPrice() * totalQuantity;
 
+                updateProductStockQuantity(product.getId(), totalQuantity, bearerToken);
+
                 // Attempt to save the order first
                 savedOrder = orderRepository.save(savedOrder);
 
                 OrderItem savedOrderItem = createAndSaveOrderItem(savedOrder, totalQuantity, itemTotalPrice);
                 associateOrderItemWithProduct(savedOrderItem, product);
-
-                updateProductStockQuantity(product.getId(), totalQuantity, bearerToken);
 
                 totalAmount += itemTotalPrice;
             } else {
@@ -168,13 +163,18 @@ public class Order_Service {
 
     // Updates the stock quantity of a product using WebClient PUT request
     private void updateProductStockQuantity(Long productId, int quantity, String bearerToken) {
-        webClientBuilder.build().put()
-                .uri(INVENTORY_SERVICE_URL + "/decrement/{id}", productId)
-                .header(HttpHeaders.AUTHORIZATION, bearerToken)
-                .body(BodyInserters.fromValue(new StockQuantityRequest(quantity)))
-                .retrieve()
-                .toBodilessEntity()
-                .block();
+        try {
+            webClientBuilder.build().put()
+                    .uri(INVENTORY_SERVICE_URL + "/decrement/{id}", productId)
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                    .body(BodyInserters.fromValue(new StockQuantityRequest(quantity)))
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
+        } catch (WebClientResponseException.ServiceUnavailable e) {
+            String responseBody = "Inventory service is currently unavailable. Please try again later.";
+            throw new ServiceUnavailableException(responseBody);
+        }
     }
 
     // Creates and saves customer and shipping information associated with an order
@@ -223,7 +223,7 @@ public class Order_Service {
         validateCustomerOwnership(order, customerId);
 
         // Update the order status
-        order.setOrderStatus(OrderStatus.CANCELLED);
+        order.setOrderStatus("CANCELLED");
 
         orderRepository.save(order);
     }
@@ -297,7 +297,7 @@ public class Order_Service {
     }
 
     //Find All Orders by OrderStatus
-    public List<OrderDTO> getOrdersByOrderStatus(OrderStatus orderStatus) {
+    public List<OrderDTO> getOrdersByOrderStatus(String orderStatus) {
         List<Order> orders = orderRepository.findByOrderStatus(orderStatus);
 
         if (orders.isEmpty()) {
@@ -309,7 +309,7 @@ public class Order_Service {
     }
 
     //Find All Orders of Costumer By OrderStatus
-    public List<OrderDTO> getOrdersOfCustomerByOrderStatus(String costumerId, OrderStatus orderStatus) {
+    public List<OrderDTO> getOrdersOfCustomerByOrderStatus(String costumerId, String orderStatus) {
         List<Order> orders = orderRepository.findByOrderStatusAndCustomers_ConsumerId(orderStatus, costumerId);
 
         if (orders.isEmpty()) {
@@ -345,7 +345,7 @@ public class Order_Service {
 
     //Find All History Order of customer
     public List<OrderDTO> getDeliveredOrdersByConsumerId(String consumerId) {
-        List<Order> deliveredOrders = orderRepository.findByCustomers_ConsumerIdAndOrderStatus(consumerId, OrderStatus.DELIVERED);
+        List<Order> deliveredOrders = orderRepository.findByCustomers_ConsumerIdAndOrderStatus(consumerId, "DELIVERED");
 
         if (deliveredOrders.isEmpty()) {
             throw new DeliveredOrdersNotFoundException("No delivered orders found for consumer: " + consumerId);
@@ -403,6 +403,7 @@ public class Order_Service {
         orderRepository.deleteById(orderId);
     }
 
+    //TODO fix this
     //Update Order Details
     public void updateOrderDetails(Long orderId, OrderDTO updatedOrderDTO) {
         Order existingOrder = orderRepository.findById(orderId).orElse(null);
@@ -466,7 +467,7 @@ public class Order_Service {
     }
 
     //Update Order Status
-    public void updateOrderStatus(Long orderId, OrderStatus newStatus) {
+    public void updateOrderStatus(Long orderId, OrderStatusRequest newStatus) {
         // Find the order by its ID
         Optional<Order> optionalOrder = orderRepository.findById(orderId);
 
@@ -474,7 +475,7 @@ public class Order_Service {
             Order order = optionalOrder.get();
 
             // Update the order status
-            order.setOrderStatus(newStatus);
+            order.setOrderStatus(newStatus.getOrderStatus());
 
             // Save the updated order
             orderRepository.save(order);

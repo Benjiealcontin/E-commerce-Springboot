@@ -1,6 +1,5 @@
 package com.Ecommerce.OrderService.Entity;
 
-import com.Ecommerce.OrderService.Enum.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,7 +9,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Data
 @AllArgsConstructor
@@ -33,7 +31,7 @@ public class Order {
     @Column(name = "order_at", nullable = false, updatable = false)
     private LocalDateTime orderDate;
 
-    private OrderStatus orderStatus;
+    private String orderStatus;
 
     private double totalAmount;
 
