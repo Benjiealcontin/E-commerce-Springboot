@@ -20,6 +20,7 @@
         <module>Payment-Service</module>
         <module>Cart-Service</module>
         <module>Inventory-Service</module>
+        <module>Shipping-Service</module>
     </modules>
 
     <properties>

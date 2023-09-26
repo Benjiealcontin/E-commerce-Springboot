@@ -6,11 +6,14 @@ import com.Ecommerce.PaymentService.Entity.OrderPayment;
 import com.Ecommerce.PaymentService.Entity.PaymentDetail;
 import com.Ecommerce.PaymentService.Exception.CustomerOwnershipValidationException;
 import com.Ecommerce.PaymentService.Exception.OrderNotFoundException;
+import com.Ecommerce.PaymentService.Exception.ServiceUnavailableException;
+import com.Ecommerce.PaymentService.Exception.ShippingMethodNotFoundException;
 import com.Ecommerce.PaymentService.Repository.BillingAddressRepository;
 import com.Ecommerce.PaymentService.Repository.OrderPaymentRepository;
 import com.Ecommerce.PaymentService.Repository.PaymentDetailRepository;
 import com.Ecommerce.PaymentService.Request.OrderPaymentDataRequest;
 import com.Ecommerce.PaymentService.Request.OrderStatusRequest;
+import com.Ecommerce.PaymentService.Request.ProductTotalAmountRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -39,10 +42,32 @@ public class Payment_Service {
     }
 
     private static final String ORDER_SERVICE_URL = "http://Order-Service/api/order";
+    private static final String SHIPPING_SERVICE_URL = "http://Shipping-Service/api/shipping";
 
+
+    //Get Total Amount with Shipping Fee
+    public MessageResponse getTotalAmountWithShippingFee(ProductTotalAmountRequest productTotalAmountRequest, String bearerToken) {
+        try {
+            TotalAmountAlongShippingAndTotalAmountDto totalAmount = webClientBuilder.build()
+                    .post()
+                    .uri(SHIPPING_SERVICE_URL + "/calculateTotalCost")
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                    .bodyValue(productTotalAmountRequest)
+                    .retrieve()
+                    .bodyToMono(TotalAmountAlongShippingAndTotalAmountDto.class)
+                    .block();
+
+            assert totalAmount != null;
+            return new MessageResponse("Total amount: " + totalAmount.getTotalAmount());
+        } catch (WebClientResponseException.NotFound e) {
+            throw new ShippingMethodNotFoundException(e.getResponseBodyAsString());
+        } catch (WebClientResponseException.ServiceUnavailable e) {
+            String responseBody = "Shipping service is currently unavailable. Please try again later.";
+            throw new ServiceUnavailableException(responseBody);
+        }
+    }
 
     //Order Payment
-
     public MessageResponse orderPayment(String bearerToken, String customerId, OrderPaymentDataRequest orderPaymentDetails) {
         // Get the order based on bearerToken and orderPaymentDetails
         OrderDTO order = getCustomerId(bearerToken, orderPaymentDetails);
@@ -53,11 +78,11 @@ public class Payment_Service {
         // Update the order status to DELIVERED
         UpdateOrderStatus(bearerToken, orderPaymentDetails);
 
-//        // Save the order payment
-//        OrderPayment orderPayment = saveOrderPayment(orderPaymentDetails);
-//
-//        // Save the order payment in the repository
-//        orderPaymentRepository.save(orderPayment);
+        // Save the order payment
+        OrderPayment orderPayment = saveOrderPayment(orderPaymentDetails);
+
+        // Save the order payment in the repository
+        orderPaymentRepository.save(orderPayment);
 
         // Return a success message
         return new MessageResponse("Payment Successfully.");
@@ -164,7 +189,6 @@ public class Payment_Service {
 
         return convertToDTO(orderPayment);
     }
-
 
     public OrderPaymentDTO convertToDTO(OrderPayment orderPayment) {
         OrderPaymentDTO orderPaymentDTO = new OrderPaymentDTO();
