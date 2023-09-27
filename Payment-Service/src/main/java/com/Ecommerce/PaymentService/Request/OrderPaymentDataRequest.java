@@ -27,5 +27,5 @@ public class OrderPaymentDataRequest {
 
     @DecimalMin(value = "0.01", message = "amount must be greater than or equal to 0.01")
     @NotNull(message = "amount is required")
-    private BigDecimal amount;
+    private double amount;
 }

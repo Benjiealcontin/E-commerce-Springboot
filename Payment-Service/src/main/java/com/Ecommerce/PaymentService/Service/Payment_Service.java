@@ -4,16 +4,16 @@ import com.Ecommerce.PaymentService.Dto.*;
 import com.Ecommerce.PaymentService.Entity.BillingAddress;
 import com.Ecommerce.PaymentService.Entity.OrderPayment;
 import com.Ecommerce.PaymentService.Entity.PaymentDetail;
-import com.Ecommerce.PaymentService.Exception.CustomerOwnershipValidationException;
-import com.Ecommerce.PaymentService.Exception.OrderNotFoundException;
-import com.Ecommerce.PaymentService.Exception.ServiceUnavailableException;
-import com.Ecommerce.PaymentService.Exception.ShippingMethodNotFoundException;
+import com.Ecommerce.PaymentService.Entity.ShippingOption;
+import com.Ecommerce.PaymentService.Exception.*;
 import com.Ecommerce.PaymentService.Repository.BillingAddressRepository;
 import com.Ecommerce.PaymentService.Repository.OrderPaymentRepository;
 import com.Ecommerce.PaymentService.Repository.PaymentDetailRepository;
+import com.Ecommerce.PaymentService.Repository.ShippingOptionRepository;
 import com.Ecommerce.PaymentService.Request.OrderPaymentDataRequest;
 import com.Ecommerce.PaymentService.Request.OrderStatusRequest;
 import com.Ecommerce.PaymentService.Request.ProductTotalAmountRequest;
+import com.Ecommerce.PaymentService.Request.ShippingMethodRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -21,6 +21,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.text.DecimalFormat;
 import java.util.Objects;
 
 
@@ -30,13 +31,15 @@ public class Payment_Service {
     private final OrderPaymentRepository orderPaymentRepository;
     private final PaymentDetailRepository paymentDetailRepository;
     private final BillingAddressRepository billingAddressRepository;
+    private final ShippingOptionRepository shippingOptionRepository;
     private final WebClient.Builder webClientBuilder;
 
 
-    public Payment_Service(OrderPaymentRepository orderPaymentRepository, PaymentDetailRepository paymentDetailRepository, BillingAddressRepository billingAddressRepository, WebClient.Builder webClientBuilder) {
+    public Payment_Service(OrderPaymentRepository orderPaymentRepository, PaymentDetailRepository paymentDetailRepository, BillingAddressRepository billingAddressRepository, ShippingOptionRepository shippingOptionRepository, WebClient.Builder webClientBuilder) {
         this.orderPaymentRepository = orderPaymentRepository;
         this.paymentDetailRepository = paymentDetailRepository;
         this.billingAddressRepository = billingAddressRepository;
+        this.shippingOptionRepository = shippingOptionRepository;
 
         this.webClientBuilder = webClientBuilder;
     }
@@ -46,8 +49,23 @@ public class Payment_Service {
 
 
     //Get Total Amount with Shipping Fee
-    public MessageResponse getTotalAmountWithShippingFee(ProductTotalAmountRequest productTotalAmountRequest, String bearerToken) {
+    public MessageResponse getTotalAmountWithShippingFee(Long orderId, ShippingMethodRequest shippingMethod, String bearerToken) {
         try {
+
+            OrderDTO orderDTO = webClientBuilder.build()
+                    .get()
+                    .uri(ORDER_SERVICE_URL + "/getOrder/{orderId}", orderId)
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                    .retrieve()
+                    .bodyToMono(OrderDTO.class)
+                    .block();
+
+            ProductTotalAmountRequest productTotalAmountRequest = new ProductTotalAmountRequest();
+            productTotalAmountRequest.setShoppingMethod(shippingMethod.getShoppingMethod());
+
+            assert orderDTO != null;
+            productTotalAmountRequest.setTotalAmount(orderDTO.getTotalAmount());
+
             TotalAmountAlongShippingAndTotalAmountDto totalAmount = webClientBuilder.build()
                     .post()
                     .uri(SHIPPING_SERVICE_URL + "/calculateTotalCost")
@@ -57,8 +75,13 @@ public class Payment_Service {
                     .bodyToMono(TotalAmountAlongShippingAndTotalAmountDto.class)
                     .block();
 
+            // Format the totalPrice to two decimal places
+            DecimalFormat decimalFormat = new DecimalFormat("#.##");
             assert totalAmount != null;
-            return new MessageResponse("Total amount: " + totalAmount.getTotalAmount());
+            double formattedTotalPrice = Double.parseDouble(decimalFormat.format(totalAmount.getTotalAmount()));
+
+            return new MessageResponse("Total amount: " + formattedTotalPrice);
+
         } catch (WebClientResponseException.NotFound e) {
             throw new ShippingMethodNotFoundException(e.getResponseBodyAsString());
         } catch (WebClientResponseException.ServiceUnavailable e) {
@@ -70,7 +93,7 @@ public class Payment_Service {
     //Order Payment
     public MessageResponse orderPayment(String bearerToken, String customerId, OrderPaymentDataRequest orderPaymentDetails) {
         // Get the order based on bearerToken and orderPaymentDetails
-        OrderDTO order = getCustomerId(bearerToken, orderPaymentDetails);
+        OrderDTO order = getOrderDetailsById(bearerToken, orderPaymentDetails);
 
         // Validate if the customer owns the order
         validateCustomerOwnership(order.getCustomer().getConsumerId(), customerId);
@@ -78,17 +101,31 @@ public class Payment_Service {
         // Update the order status to DELIVERED
         UpdateOrderStatus(bearerToken, orderPaymentDetails);
 
+        ShippingOptionDTO shippingOptionDTO = getShippingOptionDTO(orderPaymentDetails, bearerToken);
+
         // Save the order payment
-        OrderPayment orderPayment = saveOrderPayment(orderPaymentDetails);
+        OrderPayment orderPayment = saveOrderPayment(orderPaymentDetails, shippingOptionDTO);
 
-        // Save the order payment in the repository
-        orderPaymentRepository.save(orderPayment);
+        double TotalAmountToBePay = order.getTotalAmount() + shippingOptionDTO.getPrice();
 
-        // Return a success message
-        return new MessageResponse("Payment Successfully.");
+        DecimalFormat decimalFormat = new DecimalFormat("#.##");
+
+        double formattedTotalPrice = Double.parseDouble(decimalFormat.format(TotalAmountToBePay));
+
+
+        if (Double.compare(formattedTotalPrice, orderPaymentDetails.getAmount()) == 0) {
+
+            // Save the order payment in the repository
+            orderPaymentRepository.save(orderPayment);
+
+            // Return a success message
+            return new MessageResponse("Payment Successfully.");
+        } else {
+            throw new AmountMismatchException("Total amount and payment amount do not match.");
+        }
     }
 
-    public OrderPayment saveOrderPayment(OrderPaymentDataRequest request) {
+    public OrderPayment saveOrderPayment(OrderPaymentDataRequest request,ShippingOptionDTO shippingOptionDTO) {
         // Create an OrderPayment entity from the request data
         OrderPayment orderPayment = new OrderPayment();
         orderPayment.setOrderId(request.getOrderId());
@@ -104,9 +141,13 @@ public class Payment_Service {
         BillingAddress billingAddress = createBillingAddress(request);
         billingAddress.setPaymentDetail(paymentDetail);
 
+        ShippingOption shippingOption = createShippingOption(shippingOptionDTO);
+        shippingOption.setOrderPayment(orderPayment);
+
         // Save PaymentDetail and BillingAddress entities in the database
         paymentDetailRepository.save(paymentDetail);
         billingAddressRepository.save(billingAddress);
+        shippingOptionRepository.save(shippingOption);
 
         // Save the OrderPayment entity
         return orderPaymentRepository.save(orderPayment);
@@ -132,6 +173,31 @@ public class Payment_Service {
         return billingAddress;
     }
 
+    private ShippingOption createShippingOption(ShippingOptionDTO shippingOptionDTO){
+        ShippingOption shippingOption = new ShippingOption();
+        shippingOption.setShippingName(shippingOptionDTO.getShippingName());
+        shippingOption.setDescription(shippingOptionDTO.getDescription());
+        shippingOption.setPrice(shippingOptionDTO.getPrice());
+        shippingOption.setEstimatedDeliveryTimeInDays(shippingOptionDTO.getEstimatedDeliveryTimeInDays());
+        return shippingOption;
+    }
+
+    public ShippingOptionDTO getShippingOptionDTO(OrderPaymentDataRequest request, String bearerToken) {
+        try {
+            return webClientBuilder.build()
+                    .get()
+                    .uri(SHIPPING_SERVICE_URL + "/shippingOption/{shippingName}", request.getShippingMethod())
+                    .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                    .retrieve()
+                    .bodyToMono(ShippingOptionDTO.class)
+                    .block();
+        } catch (WebClientResponseException.NotFound e) {
+            throw new ShippingMethodNotFoundException(e.getResponseBodyAsString());
+        } catch (WebClientResponseException.ServiceUnavailable e) {
+            throw new ServiceUnavailableException(e.getResponseBodyAsString());
+        }
+    }
+
     public void UpdateOrderStatus(String bearerToken, OrderPaymentDataRequest orderPaymentDataRequest) {
         // Define the new order status as DELIVERED
         try {
@@ -141,18 +207,21 @@ public class Payment_Service {
                     .uri(ORDER_SERVICE_URL + "/status/{orderId}", orderPaymentDataRequest.getOrderId())
                     .header(HttpHeaders.AUTHORIZATION, bearerToken)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(BodyInserters.fromValue(new OrderStatusRequest("PAID")))
+                    .body(BodyInserters.fromValue(new OrderStatusRequest("TO_SHIP")))
                     .retrieve()
                     .toBodilessEntity()
                     .block();
-        } catch (WebClientResponseException.NotFound e) {
-            // Handle the case where the order is not found
-            String responseBody = e.getResponseBodyAsString();
-            throw new OrderNotFoundException(responseBody);
+        }
+        catch (WebClientResponseException.ServiceUnavailable e) {
+            String responseBody = "Order Service is temporarily unavailable. Please try again later.";
+            throw new ServiceUnavailableException(responseBody);
+        }
+        catch (WebClientResponseException.NotFound e) {
+            throw new OrderNotFoundException(e.getResponseBodyAsString());
         }
     }
 
-    public OrderDTO getCustomerId(String bearerToken, OrderPaymentDataRequest orderPaymentDataRequest) {
+    public OrderDTO getOrderDetailsById(String bearerToken, OrderPaymentDataRequest orderPaymentDataRequest) {
         try {
             // Use WebClient to get the order details based on orderId
             return webClientBuilder.build()
@@ -192,7 +261,7 @@ public class Payment_Service {
 
     public OrderPaymentDTO convertToDTO(OrderPayment orderPayment) {
         OrderPaymentDTO orderPaymentDTO = new OrderPaymentDTO();
-        orderPaymentDTO.setOrderId(orderPayment.getId());
+        orderPaymentDTO.setOrderId(orderPayment.getOrderId());
         orderPaymentDTO.setPaymentMethod(orderPayment.getPaymentMethod());
         orderPaymentDTO.setAmount(orderPayment.getAmount());
 
@@ -208,9 +277,15 @@ public class Payment_Service {
         billingAddressDTO.setPostalCode(orderPayment.getPaymentDetail().getBillingAddress().getPostalCode());
         billingAddressDTO.setCountry(orderPayment.getPaymentDetail().getBillingAddress().getCountry());
 
+        ShippingOptionDTO shippingOptionDTO = new ShippingOptionDTO();
+        shippingOptionDTO.setShippingName(orderPayment.getShippingOption().getShippingName());
+        shippingOptionDTO.setDescription(orderPayment.getShippingOption().getDescription());
+        shippingOptionDTO.setPrice(orderPayment.getShippingOption().getPrice());
+        shippingOptionDTO.setEstimatedDeliveryTimeInDays(orderPayment.getShippingOption().getEstimatedDeliveryTimeInDays());
+
         paymentDetailDTO.setBillingAddress(billingAddressDTO);
         orderPaymentDTO.setPaymentDetail(paymentDetailDTO);
-
+        paymentDetailDTO.setShippingOption(shippingOptionDTO);
         return orderPaymentDTO;
     }
 

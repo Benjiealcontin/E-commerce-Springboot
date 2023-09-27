@@ -37,11 +37,23 @@ public class ShippingController {
         }
     }
 
-    //Get the Shipping Option
-    @GetMapping("/shippingOptions")
+    //Get All the Shipping Option
+    @GetMapping("/getAllShippingOptions")
     public ResponseEntity<?> getShippingOption() {
         try {
             return ResponseEntity.ok(shippingService.getShippingOption());
+        } catch (ShippingOptionNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    //Get Shipping Option by ID
+    @GetMapping("/shippingOption/{shippingName}")
+    public ResponseEntity<?> getShippingOptionByShippingName(@PathVariable String shippingName) {
+        try {
+            return ResponseEntity.ok(shippingService.getShippingOptionByShippingName(shippingName));
         } catch (ShippingOptionNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {

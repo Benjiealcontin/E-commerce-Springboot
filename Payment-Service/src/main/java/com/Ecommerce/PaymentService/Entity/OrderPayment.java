@@ -21,6 +21,9 @@ public class OrderPayment {
     private String shippingMethod;
     @OneToOne(mappedBy = "orderPayment", cascade = CascadeType.ALL)
     @PrimaryKeyJoinColumn
+    private ShippingOption shippingOption;
+    @OneToOne(mappedBy = "orderPayment", cascade = CascadeType.ALL)
+    @PrimaryKeyJoinColumn
     private PaymentDetail paymentDetail;
-    private BigDecimal amount;
+    private double amount;
 }

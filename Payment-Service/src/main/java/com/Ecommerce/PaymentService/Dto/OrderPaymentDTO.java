@@ -13,5 +13,5 @@ public class OrderPaymentDTO {
     private Long orderId;
     private String paymentMethod;
     private PaymentDetailDTO paymentDetail;
-    private BigDecimal amount;
+    private double amount;
 }

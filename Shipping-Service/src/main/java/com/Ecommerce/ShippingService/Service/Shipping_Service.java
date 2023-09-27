@@ -66,6 +66,18 @@ public class Shipping_Service {
         throw new ShippingMethodNotFoundException("Shipping method not found: " + selectedShippingMethod);
     }
 
+
+    //Get Shipping Option by ShippingName
+    public ShippingOption getShippingOptionByShippingName(String shippingName){
+        ShippingOption shippingOption = shippingOptionRepository.findByShippingName(shippingName);
+
+        if (shippingOption != null) {
+            return shippingOption;
+        }
+
+        throw new ShippingOptionNotFoundException("Shipping Option not found with Shipping Name: " + shippingName);
+    }
+
     //Delete Shipping Method
     public void deleteShippingMethod(Long id){
         if (!shippingOptionRepository.existsById(id)) {

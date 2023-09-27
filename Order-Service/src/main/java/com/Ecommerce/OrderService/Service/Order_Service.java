@@ -16,6 +16,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -262,6 +263,11 @@ public class Order_Service {
                         ProductDTO productDTO = modelMapper.map(product, ProductDTO.class);
                         orderItemDTO.setProduct(productDTO);
                     }
+                    // Format the totalPrice to two decimal places
+                    DecimalFormat decimalFormat = new DecimalFormat("#.##");
+                    double formattedTotalPrice = Double.parseDouble(decimalFormat.format(orderItemDTO.getTotalPrice()));
+                    orderItemDTO.setTotalPrice(formattedTotalPrice);
+
                     return orderItemDTO;
                 })
                 .collect(Collectors.toList());
@@ -270,14 +276,14 @@ public class Order_Service {
         orderDTO.setOrderItems(orderItemDTOs);
 
         // Map associated Customer if present
-        Customer customer = order.getCustomers();
+        Customer customer = order.getCustomers(); // Change from getCustomers()
         if (customer != null) {
             CustomerDTO customerDTO = modelMapper.map(customer, CustomerDTO.class);
             orderDTO.setCustomer(customerDTO);
         }
 
         // Map associated ShippingAddress if present
-        ShippingAddress shippingAddress = order.getShippingAddresses();
+        ShippingAddress shippingAddress = order.getShippingAddresses(); // Change from getShippingAddresses()
         if (shippingAddress != null) {
             ShippingAddressDTO shippingAddressDTO = modelMapper.map(shippingAddress, ShippingAddressDTO.class);
             orderDTO.setShippingAddress(shippingAddressDTO);

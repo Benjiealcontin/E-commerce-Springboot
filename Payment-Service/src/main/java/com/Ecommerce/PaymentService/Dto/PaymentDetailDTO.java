@@ -15,4 +15,5 @@ public class PaymentDetailDTO {
     private String expirationDate;
     private String cvv;
     private BillingAddressDTO billingAddress;
+    private ShippingOptionDTO shippingOption;
 }

@@ -1,13 +1,10 @@
 package com.Ecommerce.PaymentService.Controller;
 
 
-import com.Ecommerce.PaymentService.Exception.CustomerOwnershipValidationException;
-import com.Ecommerce.PaymentService.Exception.OrderNotFoundException;
-import com.Ecommerce.PaymentService.Exception.ServiceUnavailableException;
-import com.Ecommerce.PaymentService.Exception.ShippingMethodNotFoundException;
+import com.Ecommerce.PaymentService.Exception.*;
 import com.Ecommerce.PaymentService.Request.CustomerInfo;
 import com.Ecommerce.PaymentService.Request.OrderPaymentDataRequest;
-import com.Ecommerce.PaymentService.Request.ProductTotalAmountRequest;
+import com.Ecommerce.PaymentService.Request.ShippingMethodRequest;
 import com.Ecommerce.PaymentService.Service.Payment_Service;
 import com.Ecommerce.PaymentService.Service.WebclientService;
 import jakarta.validation.Valid;
@@ -29,11 +26,12 @@ public class PaymentController {
     }
 
     //Calculate the TotalAmount with Shipping fee
-    @GetMapping("/calculateTotalCost")
-    public ResponseEntity<?> calculateTotalCost(@RequestBody ProductTotalAmountRequest request,
+    @GetMapping("/calculateTotalCost/{orderId}")
+    public ResponseEntity<?> calculateTotalCost(@PathVariable long orderId,
+                                                @RequestBody ShippingMethodRequest shippingMethod,
                                                 @RequestHeader("Authorization") String bearerToken) {
         try {
-            return ResponseEntity.ok(paymentService.getTotalAmountWithShippingFee(request, bearerToken));
+            return ResponseEntity.ok(paymentService.getTotalAmountWithShippingFee(orderId, shippingMethod, bearerToken));
         } catch (ShippingMethodNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (ServiceUnavailableException e) {
@@ -54,11 +52,13 @@ public class PaymentController {
             }
             CustomerInfo customerInfo = tokenDecodeService.getUserInfo(bearerToken);
             return ResponseEntity.ok(paymentService.orderPayment(bearerToken, customerInfo.getConsumerId(), orderPaymentRequest));
-        } catch (OrderNotFoundException e) {
+        } catch (OrderNotFoundException | ShippingMethodNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (CustomerOwnershipValidationException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (ServiceUnavailableException e) {
+        }catch (AmountMismatchException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }  catch (ServiceUnavailableException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
