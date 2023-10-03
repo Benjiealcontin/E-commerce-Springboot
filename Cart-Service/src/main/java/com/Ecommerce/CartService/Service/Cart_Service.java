@@ -13,6 +13,7 @@ import com.Ecommerce.CartService.Repository.UserCartRepository;
 import com.Ecommerce.CartService.Request.CartRequest;
 import com.Ecommerce.CartService.Request.ProductRequest;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class Cart_Service {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
@@ -125,7 +127,8 @@ public class Cart_Service {
     }
 
     // Fallback method to handle circuit open state
-    public MessageResponse addToCartFallback(TokenDTO tokenDTO, CartRequest cartRequest, String bearerToken, Throwable t) {
+    public MessageResponse addToCartFallback(TokenDTO tokenDTO, CartRequest cartRequest, String bearerToken, Throwable t,CircuitBreaker circuitBreaker) {
+        log.warn("Circuit breaker fallback: Unable to create cart. Error: {}", t.getMessage());
         return new MessageResponse("Cart addition is temporarily unavailable. Please try again later.");
     }
 

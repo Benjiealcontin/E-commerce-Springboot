@@ -49,7 +49,7 @@ public class ShippingController {
         }
     }
 
-    //Get Shipping Option by ID
+    //Get Shipping Option by ShippingName
     @GetMapping("/shippingOption/{shippingName}")
     public ResponseEntity<?> getShippingOptionByShippingName(@PathVariable String shippingName) {
         try {

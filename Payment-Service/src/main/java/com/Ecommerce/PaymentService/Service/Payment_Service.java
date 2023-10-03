@@ -1,10 +1,7 @@
 package com.Ecommerce.PaymentService.Service;
 
 import com.Ecommerce.PaymentService.Dto.*;
-import com.Ecommerce.PaymentService.Entity.BillingAddress;
-import com.Ecommerce.PaymentService.Entity.OrderPayment;
-import com.Ecommerce.PaymentService.Entity.PaymentDetail;
-import com.Ecommerce.PaymentService.Entity.ShippingOption;
+import com.Ecommerce.PaymentService.Entity.*;
 import com.Ecommerce.PaymentService.Exception.*;
 import com.Ecommerce.PaymentService.Repository.BillingAddressRepository;
 import com.Ecommerce.PaymentService.Repository.OrderPaymentRepository;
@@ -14,6 +11,8 @@ import com.Ecommerce.PaymentService.Request.OrderPaymentDataRequest;
 import com.Ecommerce.PaymentService.Request.OrderStatusRequest;
 import com.Ecommerce.PaymentService.Request.ProductTotalAmountRequest;
 import com.Ecommerce.PaymentService.Request.ShippingMethodRequest;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -26,6 +25,7 @@ import java.util.Objects;
 
 
 @Service
+@Slf4j
 public class Payment_Service {
 
     private final OrderPaymentRepository orderPaymentRepository;
@@ -91,6 +91,7 @@ public class Payment_Service {
     }
 
     //Order Payment
+    @CircuitBreaker(name = "orderPayment", fallbackMethod = "orderPaymentFallback")
     public MessageResponse orderPayment(String bearerToken, String customerId, OrderPaymentDataRequest orderPaymentDetails) {
         // Get the order based on bearerToken and orderPaymentDetails
         OrderDTO order = getOrderDetailsById(bearerToken, orderPaymentDetails);
@@ -125,7 +126,7 @@ public class Payment_Service {
         }
     }
 
-    public OrderPayment saveOrderPayment(OrderPaymentDataRequest request,ShippingOptionDTO shippingOptionDTO) {
+    public OrderPayment saveOrderPayment(OrderPaymentDataRequest request, ShippingOptionDTO shippingOptionDTO) {
         // Create an OrderPayment entity from the request data
         OrderPayment orderPayment = new OrderPayment();
         orderPayment.setOrderId(request.getOrderId());
@@ -173,7 +174,7 @@ public class Payment_Service {
         return billingAddress;
     }
 
-    private ShippingOption createShippingOption(ShippingOptionDTO shippingOptionDTO){
+    private ShippingOption createShippingOption(ShippingOptionDTO shippingOptionDTO) {
         ShippingOption shippingOption = new ShippingOption();
         shippingOption.setShippingName(shippingOptionDTO.getShippingName());
         shippingOption.setDescription(shippingOptionDTO.getDescription());
@@ -194,7 +195,8 @@ public class Payment_Service {
         } catch (WebClientResponseException.NotFound e) {
             throw new ShippingMethodNotFoundException(e.getResponseBodyAsString());
         } catch (WebClientResponseException.ServiceUnavailable e) {
-            throw new ServiceUnavailableException(e.getResponseBodyAsString());
+            String responseBody = "Shipping service is currently unavailable. Please try again later.";
+            throw new ServiceUnavailableException(responseBody);
         }
     }
 
@@ -211,12 +213,10 @@ public class Payment_Service {
                     .retrieve()
                     .toBodilessEntity()
                     .block();
-        }
-        catch (WebClientResponseException.ServiceUnavailable e) {
+        } catch (WebClientResponseException.ServiceUnavailable e) {
             String responseBody = "Order Service is temporarily unavailable. Please try again later.";
             throw new ServiceUnavailableException(responseBody);
-        }
-        catch (WebClientResponseException.NotFound e) {
+        } catch (WebClientResponseException.NotFound e) {
             throw new OrderNotFoundException(e.getResponseBodyAsString());
         }
     }
@@ -248,6 +248,7 @@ public class Payment_Service {
 
     // Fallback method to handle circuit open state
     public MessageResponse orderPaymentFallback(String bearerToken, String customerId, OrderPaymentDataRequest orderPaymentDetails, Throwable t) {
+        log.warn("Circuit breaker fallback: Unable to create payment. Error: {}", t.getMessage());
         return new MessageResponse("Payment is temporarily unavailable. Please try again later.");
     }
 
@@ -285,7 +286,7 @@ public class Payment_Service {
 
         paymentDetailDTO.setBillingAddress(billingAddressDTO);
         orderPaymentDTO.setPaymentDetail(paymentDetailDTO);
-        paymentDetailDTO.setShippingOption(shippingOptionDTO);
+        orderPaymentDTO.setShippingOption(shippingOptionDTO);
         return orderPaymentDTO;
     }
 

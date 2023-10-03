@@ -6,7 +6,9 @@ import com.Ecommerce.OrderService.Entity.*;
 import com.Ecommerce.OrderService.Exception.*;
 import com.Ecommerce.OrderService.Repository.*;
 import com.Ecommerce.OrderService.Request.*;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.core.ParameterizedTypeReference;
@@ -24,6 +26,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class Order_Service {
     private final OrderRepository orderRepository;
     private final CustomerRepository customerRepository;
@@ -47,7 +50,7 @@ public class Order_Service {
     private static final String INVENTORY_SERVICE_URL = "http://Inventory-Service/api/inventory";
 
     //Add Order
-
+    @CircuitBreaker(name = "addOrder", fallbackMethod = "addOrderFallback")
     public MessageResponse addOrder(OrderRequest orderRequest, CustomerInfo customerInfo, String bearerToken) {
         try {
             // Extract product IDs from the order request
@@ -216,6 +219,7 @@ public class Order_Service {
 
     // Fallback method to handle circuit open state
     public MessageResponse addOrderFallback(OrderRequest orderRequest, CustomerInfo customerInfo, String bearerToken, Throwable t) {
+        log.warn("Circuit breaker fallback: Unable to create order. Error: {}", t.getMessage());
         return new MessageResponse("Order creation is temporarily unavailable. Please try again later.");
     }
 

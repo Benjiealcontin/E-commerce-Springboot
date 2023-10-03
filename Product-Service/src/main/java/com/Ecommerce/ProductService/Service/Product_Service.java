@@ -7,15 +7,18 @@ import com.Ecommerce.ProductService.Dto.ProductWithImageDTO;
 import com.Ecommerce.ProductService.Entity.Image;
 import com.Ecommerce.ProductService.Entity.Product;
 import com.Ecommerce.ProductService.Entity.Review;
-import com.Ecommerce.ProductService.Exception.*;
+import com.Ecommerce.ProductService.Exception.ImageNotFoundException;
+import com.Ecommerce.ProductService.Exception.ProductAlreadyExistsException;
+import com.Ecommerce.ProductService.Exception.ProductNotFoundException;
+import com.Ecommerce.ProductService.Exception.ProductsNotFoundException;
 import com.Ecommerce.ProductService.Repository.ImageRepository;
 import com.Ecommerce.ProductService.Repository.ProductRepository;
 import com.Ecommerce.ProductService.Repository.ReviewRepository;
 import com.Ecommerce.ProductService.Request.ProductRequest;
 import com.Ecommerce.ProductService.Request.ReviewRequest;
-import com.Ecommerce.ProductService.Request.StockQuantityRequest;
 import com.Ecommerce.ProductService.Utils.ImageUtility;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -28,6 +31,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@Slf4j
 public class Product_Service {
 
     private final ProductRepository productRepository;
@@ -82,6 +86,7 @@ public class Product_Service {
 
     // Fallback method to handle circuit open state
     public MessageResponse createProductFallback(ProductRequest productRequest, MultipartFile file, Throwable t) {
+        log.warn("Circuit breaker fallback: Unable to create product. Error: {}", t.getMessage());
         return new MessageResponse("Product creation is temporarily unavailable. Please try again later.");
     }
 
